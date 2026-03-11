@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package bufio implements buffered I/O. It wraps an io.Reader or io.Writer
-// object, creating another object (Reader or Writer) that also implements
-// the interface but provides buffering and some help for textual I/O.
+// Package bufio 实现了带缓冲的 I/O。它包装了一个 io.Reader 或 io.Writer 对象，
+// 创建了另一个同样实现了该接口的对象（Reader 或 Writer），但提供了缓冲功能以及对文本 I/O 的一些辅助支持。
 package bufio
 
 import (
@@ -26,12 +25,11 @@ var (
 	ErrNegativeCount     = errors.New("bufio: negative count")
 )
 
-// Buffered input.
+// 缓冲输入。
 
-// Reader implements buffering for an io.Reader object.
-// A new Reader is created by calling [NewReader] or [NewReaderSize];
-// alternatively the zero value of a Reader may be used after calling [Reset]
-// on it.
+// Reader 为 io.Reader 对象实现了缓冲功能。
+// 可以通过调用 [NewReader] 或 [NewReaderSize] 来创建一个新的 Reader；
+// 另外，在调用 [Reset] 之后，可以使用 Reader 的零值。
 type Reader struct {
 	buf          []byte
 	rd           io.Reader // reader provided by the client
@@ -44,11 +42,10 @@ type Reader struct {
 const minReadBufferSize = 16
 const maxConsecutiveEmptyReads = 100
 
-// NewReaderSize returns a new [Reader] whose buffer has at least the specified
-// size. If the argument io.Reader is already a [Reader] with large enough
-// size, it returns the underlying [Reader].
+// NewReaderSize 返回一个新的 [Reader]，其缓冲区至少具有指定的大小。
+// 如果参数 io.Reader 已经是一个具有足够大缓冲区的 [Reader]，它将返回底层的 [Reader]。
 func NewReaderSize(rd io.Reader, size int) *Reader {
-	// Is it already a Reader?
+	// 它已经是一个 Reader 了吗？
 	b, ok := rd.(*Reader)
 	if ok && len(b.buf) >= size {
 		return b
@@ -58,23 +55,20 @@ func NewReaderSize(rd io.Reader, size int) *Reader {
 	return r
 }
 
-// NewReader returns a new [Reader] whose buffer has the default size.
+// NewReader 返回一个新的 [Reader]，其缓冲区具有默认大小。
 func NewReader(rd io.Reader) *Reader {
 	return NewReaderSize(rd, defaultBufSize)
 }
 
-// Size returns the size of the underlying buffer in bytes.
+// Size 返回底层缓冲区的大小（以字节为单位）。
 func (b *Reader) Size() int { return len(b.buf) }
 
-// Reset discards any buffered data, resets all state, and switches
-// the buffered reader to read from r.
-// Calling Reset on the zero value of [Reader] initializes the internal buffer
-// to the default size.
-// Calling b.Reset(b) (that is, resetting a [Reader] to itself) does nothing.
+// Reset 丢弃所有缓冲的数据，重置所有状态，并将缓冲读取器切换为从 r 读取。
+// 在 [Reader] 的零值上调用 Reset 会将内部缓冲区初始化为默认大小。
+// 调用 b.Reset(b)（即将一个 [Reader] 重置为其自身）不会产生任何效果。
 func (b *Reader) Reset(r io.Reader) {
-	// If a Reader r is passed to NewReader, NewReader will return r.
-	// Different layers of code may do that, and then later pass r
-	// to Reset. Avoid infinite recursion in that case.
+	// 如果一个 Reader r 被传递给 NewReader，NewReader 将返回 r。
+	// 不同层级的代码可能会这样做，之后再将 r 传递给 Reset。这种情况下要避免无限递归。
 	if b == r {
 		return
 	}
@@ -95,7 +89,7 @@ func (b *Reader) reset(buf []byte, r io.Reader) {
 
 var errNegativeRead = errors.New("bufio: reader returned negative count from Read")
 
-// fill reads a new chunk into the buffer.
+// fill 从底层读取器中读取一个新的数据块到缓冲区。
 func (b *Reader) fill() {
 	// Slide existing data to beginning.
 	if b.r > 0 {
@@ -108,7 +102,7 @@ func (b *Reader) fill() {
 		panic("bufio: tried to fill full buffer")
 	}
 
-	// Read new data: try a limited number of times.
+	// 读取新数据：尝试有限次数。
 	for i := maxConsecutiveEmptyReads; i > 0; i-- {
 		n, err := b.rd.Read(b.buf[b.w:])
 		if n < 0 {
@@ -132,14 +126,11 @@ func (b *Reader) readErr() error {
 	return err
 }
 
-// Peek returns the next n bytes without advancing the reader. The bytes stop
-// being valid at the next read call. If necessary, Peek will read more bytes
-// into the buffer in order to make n bytes available. If Peek returns fewer
-// than n bytes, it also returns an error explaining why the read is short.
-// The error is [ErrBufferFull] if n is larger than b's buffer size.
+// Peek 返回接下来的 n 个字节，但不推进读取器的读取位置。这些字节在下一次读取调用后将失效。
+// 如有必要，Peek 会读取更多字节到缓冲区，以便凑足 n 个字节。如果 Peek 返回的字节数少于 n 个，
+// 它还会返回一个错误来解释读取不足的原因。如果 n 大于 b 的缓冲区大小，错误为 [ErrBufferFull]。
 //
-// Calling Peek prevents a [Reader.UnreadByte] or [Reader.UnreadRune] call from succeeding
-// until the next read operation.
+// 调用 Peek 会使得直到下一次读取操作之前，[Reader.UnreadByte] 或 [Reader.UnreadRune] 调用都无法成功。
 func (b *Reader) Peek(n int) ([]byte, error) {
 	if n < 0 {
 		return nil, ErrNegativeCount

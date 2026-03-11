@@ -3,82 +3,70 @@
 // license that can be found in the LICENSE file.
 
 /*
-Package flag implements command-line flag parsing.
+Package flag 实现了命令行标志的解析。
 
-# Usage
+使用方法
 
-Define flags using [flag.String], [Bool], [Int], etc.
+使用 [flag.String]、[Bool]、[Int] 等函数来定义标志。
 
-This declares an integer flag, -n, stored in the pointer nFlag, with type *int:
+以下声明了一个整型标志 -n，存储在指针 nFlag 中，类型为 *int：
 
 	import "flag"
-	var nFlag = flag.Int("n", 1234, "help message for flag n")
+	var nFlag = flag.Int("n", 1234, "关于标志 n 的帮助信息")
 
-If you like, you can bind the flag to a variable using the Var() functions.
+如果愿意，你也可以使用 Var() 系列函数将标志绑定到变量。
 
 	var flagvar int
 	func init() {
-		flag.IntVar(&flagvar, "flagname", 1234, "help message for flagname")
+		flag.IntVar(&flagvar, "flagname", 1234, "关于标志 flagname 的帮助信息")
 	}
 
-Or you can create custom flags that satisfy the Value interface (with
-pointer receivers) and couple them to flag parsing by
+或者，你可以创建满足 Value 接口（需使用指针接收者）的自定义标志，并通过以下方式将其与标志解析关联：
 
-	flag.Var(&flagVal, "name", "help message for flagname")
+	flag.Var(&flagVal, "name", "关于标志 flagname 的帮助信息")
 
-For such flags, the default value is just the initial value of the variable.
+对于此类标志，默认值就是该变量的初始值。
 
-After all flags are defined, call
+在所有标志定义完成后，调用
 
 	flag.Parse()
 
-to parse the command line into the defined flags.
+来将命令行参数解析到已定义的标志中。
 
-Flags may then be used directly. If you're using the flags themselves,
-they are all pointers; if you bind to variables, they're values.
+随后可以直接使用这些标志。如果你使用的是标志本身，它们都是指针；如果你绑定到了变量，它们就是值。
 
-	fmt.Println("ip has value ", *ip)
-	fmt.Println("flagvar has value ", flagvar)
+	fmt.Println("ip 的值为 ", *ip)
+	fmt.Println("flagvar 的值为 ", flagvar)
 
-After parsing, the arguments following the flags are available as the
-slice [flag.Args] or individually as [flag.Arg](i).
-The arguments are indexed from 0 through [flag.NArg]-1.
+解析后，标志之后的参数可以通过切片 i 单独获取。
+参数索引从 0 到 [flag.NArg]-1。
 
-# Command line flag syntax
+命令行标志语法
 
-The following forms are permitted:
+允许以下形式：
 
 	-flag
-	--flag   // double dashes are also permitted
+	--flag   // 也允许使用双破折号
 	-flag=x
-	-flag x  // non-boolean flags only
+	-flag x  // 仅适用于非布尔标志
 
-One or two dashes may be used; they are equivalent.
-The last form is not permitted for boolean flags because the
-meaning of the command
+可以使用一个或两个破折号，它们是等效的。
+最后一种形式不允许用于布尔标志，因为类似这样的命令：
 
 	cmd -x *
 
-where * is a Unix shell wildcard, will change if there is a file
-called 0, false, etc. You must use the -flag=false form to turn
-off a boolean flag.
+（其中 * 是 Unix shell 的通配符）的含义会在存在名为 0、false 等文件时发生改变。你必须使用 -flag=false 的形式来关闭布尔标志。
 
-Flag parsing stops just before the first non-flag argument
-("-" is a non-flag argument) or after the terminator "--".
+标志解析会在遇到第一个非标志参数（"-" 就是一个非标志参数）之前停止，或者在终止符 "--" 之后停止。
 
-Integer flags accept 1234, 0664, 0x1234 and may be negative.
-Boolean flags may be:
+整型标志接受 1234、0664、0x1234 等值，并且可以为负数。
+布尔标志可以是：
 
 	1, 0, t, f, T, F, true, false, TRUE, FALSE, True, False
 
-Duration flags accept any input valid for time.ParseDuration.
+时长标志接受任何对 time.ParseDuration 有效的输入。
 
-The default set of command-line flags is controlled by
-top-level functions.  The [FlagSet] type allows one to define
-independent sets of flags, such as to implement subcommands
-in a command-line interface. The methods of [FlagSet] are
-analogous to the top-level functions for the command-line
-flag set.
+默认的命令行标志集由顶级函数控制。[FlagSet] 类型允许定义独立的标志集，例如用于在命令行界面中实现子命令。[FlagSet] 的方法与命令行标志集的顶级函数是类似的。
 */
 package flag
 

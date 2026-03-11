@@ -16,17 +16,17 @@ import (
 	"golang.org/x/net/http/httpguts"
 )
 
-// Protocols is a set of HTTP protocols.
-// The zero value is an empty set of protocols.
+// Protocols 是一组 HTTP 协议。
+// 零值是一个空的协议集合。
 //
-// The supported protocols are:
+// 支持的协议包括：
 //
-//   - HTTP1 is the HTTP/1.0 and HTTP/1.1 protocols.
-//     HTTP1 is supported on both unsecured TCP and secured TLS connections.
+//   - HTTP1: HTTP/1.0 和 HTTP/1.1 协议。
+//     HTTP1 既支持未加密的 TCP 连接，也支持加密的 TLS 连接。
 //
-//   - HTTP2 is the HTTP/2 protcol over a TLS connection.
+//   - HTTP2: 基于 TLS 连接的 HTTP/2 协议。
 //
-//   - UnencryptedHTTP2 is the HTTP/2 protocol over an unsecured TCP connection.
+//   - UnencryptedHTTP2: 基于未加密 TCP 连接的 HTTP/2 协议。
 type Protocols struct {
 	bits uint8
 }
