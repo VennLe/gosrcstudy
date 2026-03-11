@@ -10,7 +10,6 @@
         "ui.diagnostic.vulncheck": "Off",
         "build.experimentalWorkspaceModule": true,
         "build.allowModfileModifications": false,
-        "build.allowModfileModifications": false
     },
     
     // 关键：设置 GOROOT 指向当前工作区的 Go 源码
