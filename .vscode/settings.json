@@ -1,0 +1,32 @@
+{
+    // 指定使用当前目录下的 Go 源码作为 GOROOT
+    "gopls": {
+        "ui.diagnostic.annotations": {
+            "bounds": false,
+            "escape": false,
+            "inline": false,
+            "nil": false
+        },
+        "ui.diagnostic.vulncheck": "Off",
+        "build.experimentalWorkspaceModule": true,
+        "build.allowModfileModifications": false,
+        "build.allowModfileModifications": false
+    },
+    
+    // 关键：设置 GOROOT 指向当前工作区的 Go 源码
+    "go.goroot": "${workspaceFolder}",
+    
+    // 使用当前 Go 源码编译出的工具
+    "go.alternateTools": {
+        "go": "${workspaceFolder}/bin/go"
+    },
+    
+    // 禁用自动安装工具，避免污染当前环境
+    "go.toolsManagement.autoUpdate": false,
+    
+    // 设置环境变量，确保子进程也使用正确的 GOROOT
+    "go.toolsManagement.env": {
+        "GOROOT": "${workspaceFolder}",
+        "PATH": "${workspaceFolder}/bin:${env:PATH}"
+    }
+}

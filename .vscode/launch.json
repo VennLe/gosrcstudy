@@ -1,0 +1,17 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch with Custom GOROOT",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${fileDirname}",
+            "env": {
+                "GOROOT": "${workspaceFolder}",
+                "PATH": "${workspaceFolder}/bin:${env:PATH}"
+            },
+            "showLog": true
+        }
+    ]
+}
