@@ -365,11 +365,11 @@ func init() {
 type cancelCtx struct {
 	Context
 
-	mu       sync.Mutex            // protects following fields
-	done     atomic.Value          // of chan struct{}, created lazily, closed by first cancel call
-	children map[canceler]struct{} // set to nil by the first cancel call
-	err      atomic.Value          // set to non-nil by the first cancel call
-	cause    error                 // set to non-nil by the first cancel call
+	mu       sync.Mutex            // 保护以下字段
+	done     atomic.Value          // 延迟创建的 chan struct{} 类型字段，在首次调用 cancel 时被关闭。
+	children map[canceler]struct{} // 在首次 cancel 调用时被设为 nil。
+	err      atomic.Value          // 在首次 cancel 调用时被设为非 nil 值。
+	cause    error                 // 在首次 cancel 调用时被设为非 nil 值。
 }
 
 func (c *cancelCtx) Value(key any) any {
