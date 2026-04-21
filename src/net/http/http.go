@@ -37,22 +37,22 @@ const (
 	protoUnencryptedHTTP2
 )
 
-// HTTP1 reports whether p includes HTTP/1.
+// HTTP1 报告 p 是否包含对 HTTP/1 协议的支持。
 func (p Protocols) HTTP1() bool { return p.bits&protoHTTP1 != 0 }
 
-// SetHTTP1 adds or removes HTTP/1 from p.
+// SetHTTP1 用于在 p 中添加或移除对 HTTP/1 协议的支持。
 func (p *Protocols) SetHTTP1(ok bool) { p.setBit(protoHTTP1, ok) }
 
-// HTTP2 reports whether p includes HTTP/2.
+// HTTP2 报告 p 是否包含对 HTTP/2 协议的支持。
 func (p Protocols) HTTP2() bool { return p.bits&protoHTTP2 != 0 }
 
-// SetHTTP2 adds or removes HTTP/2 from p.
+// SetHTTP2 用于在 p 中添加或移除对 HTTP/2 协议的支持。
 func (p *Protocols) SetHTTP2(ok bool) { p.setBit(protoHTTP2, ok) }
 
-// UnencryptedHTTP2 reports whether p includes unencrypted HTTP/2.
+// UnencryptedHTTP2 报告 p 是否包含对未加密 HTTP/2 协议的支持。
 func (p Protocols) UnencryptedHTTP2() bool { return p.bits&protoUnencryptedHTTP2 != 0 }
 
-// SetUnencryptedHTTP2 adds or removes unencrypted HTTP/2 from p.
+// SetUnencryptedHTTP2 用于在 p 中添加或移除对未加密 HTTP/2 协议的支持。
 func (p *Protocols) SetUnencryptedHTTP2(ok bool) { p.setBit(protoUnencryptedHTTP2, ok) }
 
 func (p *Protocols) setBit(bit uint8, ok bool) {
@@ -77,41 +77,36 @@ func (p Protocols) String() string {
 	return "{" + strings.Join(s, ",") + "}"
 }
 
-// incomparable is a zero-width, non-comparable type. Adding it to a struct
-// makes that struct also non-comparable, and generally doesn't add
-// any size (as long as it's first).
+// incomparable 是一个零宽度、不可比较的类型。将其添加到结构体中，
+// 会使该结构体也变得不可比较，并且通常不会增加额外的大小（只要将它放在首位）。
 type incomparable [0]func()
 
-// maxInt64 is the effective "infinite" value for the Server and
-// Transport's byte-limiting readers.
+// maxInt64 是 Server 和 Transport 中字节限制读取器实际使用的“无限”值。
 const maxInt64 = 1<<63 - 1
 
-// aLongTimeAgo is a non-zero time, far in the past, used for
-// immediate cancellation of network operations.
+// aLongTimeAgo 是一个非零的过去时间点，用于立即取消网络操作。
 var aLongTimeAgo = time.Unix(1, 0)
 
-// omitBundledHTTP2 is set by omithttp2.go when the nethttpomithttp2
-// build tag is set. That means h2_bundle.go isn't compiled in and we
-// shouldn't try to use it.
+// omitBundledHTTP2 在设置 nethttpomithttp2 构建标签时，
+// 由 omithttp2.go 文件设置。这意味着 h2_bundle.go 未被编译，
+// 我们不应尝试使用它。
 var omitBundledHTTP2 bool
 
-// TODO(bradfitz): move common stuff here. The other files have accumulated
-// generic http stuff in random places.
+// TODO(bradfitz)：将公共内容移至此处。其他文件中在随机位置累积了通用的 HTTP 相关代码。
 
-// contextKey is a value for use with context.WithValue. It's used as
-// a pointer so it fits in an interface{} without allocation.
+// contextKey 用于与 context.WithValue 配合使用的键类型。
+// 它被定义为指针类型，从而可以在不分配内存的情况下存入 interface{}。
 type contextKey struct {
 	name string
 }
 
 func (k *contextKey) String() string { return "net/http context value " + k.name }
 
-// Given a string of the form "host", "host:port", or "[ipv6::address]:port",
-// return true if the string includes a port.
+// 给定格式为 "host"、"host:port" 或 "[ipv6::address]:port" 的字符串，
+// 如果字符串包含端口号，则返回 true。
 func hasPort(s string) bool { return strings.LastIndex(s, ":") > strings.LastIndex(s, "]") }
 
-// removeEmptyPort strips the empty port in ":port" to ""
-// as mandated by RFC 3986 Section 6.2.3.
+// removeEmptyPort 按照 RFC 3986 第 6.2.3 节的要求，将 ":port" 中的空端口转换为 ""。
 func removeEmptyPort(host string) string {
 	if hasPort(host) {
 		return strings.TrimSuffix(host, ":")
@@ -119,13 +114,13 @@ func removeEmptyPort(host string) string {
 	return host
 }
 
-// isToken reports whether v is a valid token (https://www.rfc-editor.org/rfc/rfc2616#section-2.2).
+// isToken 检查 v 是否是一个有效的 token(https://www.rfc-editor.org/rfc/rfc2616#section-2.2).
 func isToken(v string) bool {
-	// For historical reasons, this function is called ValidHeaderFieldName (see issue #67031).
+	// 由于历史原因，此函数被命名为 ValidHeaderFieldName（参见 issue #67031）。
 	return httpguts.ValidHeaderFieldName(v)
 }
 
-// stringContainsCTLByte reports whether s contains any ASCII control character.
+// stringContainsCTLByte 检查字符串是否包含任何 ASCII 控制字符。
 func stringContainsCTLByte(s string) bool {
 	for i := 0; i < len(s); i++ {
 		b := s[i]
@@ -166,10 +161,9 @@ func hexEscapeNonASCII(s string) string {
 	return string(b)
 }
 
-// NoBody is an [io.ReadCloser] with no bytes. Read always returns EOF
-// and Close always returns nil. It can be used in an outgoing client
-// request to explicitly signal that a request has zero bytes.
-// An alternative, however, is to simply set [Request.Body] to nil.
+// NoBody 是一个无内容的 [io.ReadCloser]。读取时始终返回 EOF，
+// 关闭时始终返回 nil。可在发起客户端请求时使用，以明确表示请求体无内容。
+// 另一种做法是直接将 [Request.Body] 设置为 nil。
 var NoBody = noBody{}
 
 type noBody struct{}
@@ -179,73 +173,56 @@ func (noBody) Close() error                     { return nil }
 func (noBody) WriteTo(io.Writer) (int64, error) { return 0, nil }
 
 var (
-	// verify that an io.Copy from NoBody won't require a buffer:
+	// 验证从 NoBody 执行 io.Copy 操作不会需要缓冲区：
 	_ io.WriterTo   = NoBody
 	_ io.ReadCloser = NoBody
 )
 
-// PushOptions describes options for [Pusher.Push].
+// PushOptions 描述了 [Pusher.Push] 方法的选项。
 type PushOptions struct {
-	// Method specifies the HTTP method for the promised request.
-	// If set, it must be "GET" or "HEAD". Empty means "GET".
+	// Method 指定了所承诺请求的 HTTP 方法。
+	// 如果设置了此值，它必须为 "GET" 或 "HEAD"。为空时默认为 "GET"。
 	Method string
 
-	// Header specifies additional promised request headers. This cannot
-	// include HTTP/2 pseudo header fields like ":path" and ":scheme",
-	// which will be added automatically.
+	// Header 指定了所承诺请求的额外头部字段。此字段不能包含 HTTP/2 伪头部字段（例如 ":path" 和 ":scheme"），这些伪头部字段将由系统自动添加。
 	Header Header
 }
 
-// Pusher is the interface implemented by ResponseWriters that support
-// HTTP/2 server push. For more background, see
-// https://tools.ietf.org/html/rfc7540#section-8.2.
+// Pusher 是由支持 HTTP/2 服务器推送的 ResponseWriters 实现的接口。更多背景信息，请参考 。
 type Pusher interface {
-	// Push initiates an HTTP/2 server push. This constructs a synthetic
-	// request using the given target and options, serializes that request
-	// into a PUSH_PROMISE frame, then dispatches that request using the
-	// server's request handler. If opts is nil, default options are used.
+	// Push 方法用于发起一个 HTTP/2 服务器推送。它会根据给定的目标路径/URL 和选项构造一个合成请求，
+	// 将该请求序列化为 PUSH_PROMISE 帧，然后通过服务器的请求处理器分发该请求。如果 opts 为 nil，
+	// 将使用默认选项。
 	//
-	// The target must either be an absolute path (like "/path") or an absolute
-	// URL that contains a valid host and the same scheme as the parent request.
-	// If the target is a path, it will inherit the scheme and host of the
-	// parent request.
+	// 目标（target）必须是绝对路径（例如 "/path"），或者是包含有效主机名且与父请求协议方案相同的绝对 URL。
+	// 如果目标是路径，它将继承父请求的协议方案和主机名。
 	//
-	// The HTTP/2 spec disallows recursive pushes and cross-authority pushes.
-	// Push may or may not detect these invalid pushes; however, invalid
-	// pushes will be detected and canceled by conforming clients.
+	// HTTP/2 规范禁止递归推送和跨域推送。本方法可能不会检测到这些无效推送；
+	// 然而，符合规范的客户端会检测并取消这些无效推送。
 	//
-	// Handlers that wish to push URL X should call Push before sending any
-	// data that may trigger a request for URL X. This avoids a race where the
-	// client issues requests for X before receiving the PUSH_PROMISE for X.
+	// 希望推送 URL X 的处理器应在发送任何可能触发对 URL X 的请求的数据之前调用 Push 方法。
+	// 这可以避免客户端在收到针对 X 的 PUSH_PROMISE 帧之前就发起对 X 的请求的竞态条件。
 	//
-	// Push will run in a separate goroutine making the order of arrival
-	// non-deterministic. Any required synchronization needs to be implemented
-	// by the caller.
+	// Push 方法会在单独的 goroutine 中运行，因此推送到达的顺序是非确定性的。
+	// 任何必要的同步都需要由调用方实现。
 	//
-	// Push returns ErrNotSupported if the client has disabled push or if push
-	// is not supported on the underlying connection.
+	// 如果客户端禁用了推送功能，或者底层连接不支持推送，Push 方法会返回 ErrNotSupported 错误。
 	Push(target string, opts *PushOptions) error
 }
 
-// HTTP2Config defines HTTP/2 configuration parameters common to
-// both [Transport] and [Server].
+// HTTP2Config 定义了 HTTP/2 配置参数，这些参数在 [Transport] 和 [Server] 中是通用的。
 type HTTP2Config struct {
-	// MaxConcurrentStreams optionally specifies the number of
-	// concurrent streams that a client may have open at a time.
-	// If zero, MaxConcurrentStreams defaults to at least 100.
+	// MaxConcurrentStreams 可选地指定客户端在同一时间可打开的最大并发流数。
+	// 如果值为零，则 MaxConcurrentStreams 默认至少为 100。
 	//
-	// This parameter only applies to Servers.
+	// 此参数仅适用于服务器端。
 	MaxConcurrentStreams int
 
-	// StrictMaxConcurrentRequests controls whether an HTTP/2 server's
-	// concurrency limit should be respected across all connections
-	// to that server.
-	// If true, new requests sent when a connection's concurrency limit
-	// has been exceeded will block until an existing request completes.
-	// If false, an additional connection will be opened if all
-	// existing connections are at their limit.
+	// StrictMaxConcurrentRequests 控制是否应在与某个 HTTP/2 服务器的所有连接上强制执行其并发限制。
+	// 如果为 true，当某个连接达到其并发限制时，发送的新请求将会阻塞，直到已有请求完成。
+	// 如果为 false，如果所有现有连接都达到了各自的限制，将会打开一个新的连接来处理新请求。
 	//
-	// This parameter only applies to Transports.
+	// 此参数仅适用于传输层（Transports）。
 	StrictMaxConcurrentRequests bool
 
 	// MaxDecoderHeaderTableSize optionally specifies an upper limit for the
