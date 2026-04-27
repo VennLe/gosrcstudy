@@ -243,59 +243,48 @@ const (
 // include downgrade canaries even if it's using its highers supported version.
 var testingOnlyForceDowngradeCanary bool
 
-// ConnectionState records basic TLS details about the connection.
+// ConnectionState 记录了该连接的基本 TLS 详细信息。
 type ConnectionState struct {
-	// Version is the TLS version used by the connection (e.g. VersionTLS12).
+	// Version 表示连接所使用的 TLS 版本（例如 VersionTLS12）。
 	Version uint16
 
-	// HandshakeComplete is true if the handshake has concluded.
+	// HandshakeComplete 表示握手是否已完成。如果握手已成功结束，则为 true。
 	HandshakeComplete bool
 
-	// DidResume is true if this connection was successfully resumed from a
-	// previous session with a session ticket or similar mechanism.
+	// DidResume 指示此连接是否是通过会话票据（session ticket）或类似机制成功从之前的会话恢复建立的，如果是则为 true。
 	DidResume bool
 
-	// CipherSuite is the cipher suite negotiated for the connection (e.g.
-	// TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_AES_128_GCM_SHA256).
+	// CipherSuite 表示为本次连接协商确定的加密套件（例如 TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 或 TLS_AES_128_GCM_SHA256）。
 	CipherSuite uint16
 
-	// CurveID is the key exchange mechanism used for the connection. The name
-	// refers to elliptic curves for legacy reasons, see [CurveID]. If a legacy
-	// RSA key exchange is used, this value is zero.
+	// CurveID 表示连接所使用的密钥交换机制。由于历史原因，其名称与椭圆曲线相关，可参考 [CurveID] 了解更多。
+	// 如果使用的是传统的 RSA 密钥交换，则该值为零。
 	CurveID CurveID
 
-	// NegotiatedProtocol is the application protocol negotiated with ALPN.
+	// NegotiatedProtocol 是通过 ALPN 协商确定的应用层协议。
 	NegotiatedProtocol string
 
-	// NegotiatedProtocolIsMutual used to indicate a mutual NPN negotiation.
-	//
-	// Deprecated: this value is always true.
+	// NegotiatedProtocolIsMutual 曾经用于指示是否完成了双向的 NPN 协商。
+
+	// 已弃用：此值如今始终为 true。
 	NegotiatedProtocolIsMutual bool
 
-	// ServerName is the value of the Server Name Indication extension sent by
-	// the client. It's available both on the server and on the client side.
+	// ServerName 是由客户端发送的 Server Name Indication（SNI）扩展的值。它在服务器端和客户端均可获取。
 	ServerName string
 
-	// PeerCertificates are the parsed certificates sent by the peer, in the
-	// order in which they were sent. The first element is the leaf certificate
-	// that the connection is verified against.
-	//
-	// On the client side, it can't be empty. On the server side, it can be
-	// empty if Config.ClientAuth is not RequireAnyClientCert or
-	// RequireAndVerifyClientCert.
-	//
-	// PeerCertificates and its contents should not be modified.
+	// PeerCertificates 存储了对等端发送的已解析证书，其顺序与其发送顺序一致。第一个元素是用于连接验证的叶证书（即对等端的实际身份证书）。
+	// 在客户端，此字段不能为空。在服务器端，如果 Config.ClientAuth 未设置为 RequireAnyClientCert 或
+	// RequireAndVerifyClientCert，则此字段可能为空。
+	// PeerCertificates 及其内容不应被修改。
 	PeerCertificates []*x509.Certificate
 
-	// VerifiedChains is a list of one or more chains where the first element is
-	// PeerCertificates[0] and the last element is from Config.RootCAs (on the
-	// client side) or Config.ClientCAs (on the server side).
-	//
-	// On the client side, it's set if Config.InsecureSkipVerify is false. On
-	// the server side, it's set if Config.ClientAuth is VerifyClientCertIfGiven
-	// (and the peer provided a certificate) or RequireAndVerifyClientCert.
-	//
-	// VerifiedChains and its contents should not be modified.
+	// VerifiedChains 是一个包含一个或多个证书链的列表，其中第一个元素是 PeerCertificates[0]，最后一个元素来源
+	//于 Config.RootCAs（客户端）或 Config.ClientCAs（服务器端）。
+	// 在客户端，只有当 Config.InsecureSkipVerify 设置为 false 时，才会填充此字段。在服务器端，
+	//当 Config.ClientAuth 设置为 VerifyClientCertIfGiven（且对等方提供了证书）或 RequireAndVerifyClientCert
+	// 时，会填充此字段。
+
+	// VerifiedChains 及其内容不应被修改。
 	VerifiedChains [][]*x509.Certificate
 
 	// SignedCertificateTimestamps is a list of SCTs provided by the peer
