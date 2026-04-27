@@ -35,24 +35,17 @@ import (
 	"golang.org/x/net/http/httpguts"
 )
 
-// Errors used by the HTTP server.
+// HTTP 服务器使用的错误类型。
 var (
-	// ErrBodyNotAllowed is returned by ResponseWriter.Write calls
-	// when the HTTP method or response code does not permit a
-	// body.
+	// ErrBodyNotAllowed 错误会在以下情况返回：当 HTTP 方法或响应状态码不允许响应体时，对 ResponseWriter.Write 的调用会返回此错误。
 	ErrBodyNotAllowed = errors.New("http: request method or response status code does not allow body")
 
-	// ErrHijacked is returned by ResponseWriter.Write calls when
-	// the underlying connection has been hijacked using the
-	// Hijacker interface. A zero-byte write on a hijacked
-	// connection will return ErrHijacked without any other side
-	// effects.
+	// ErrHijacked 错误会在底层连接已被通过 Hijacker 接口劫持时，对 ResponseWriter.Write 的调用返回。
+	// 在已劫持的连接上进行零字节写入会返回 ErrHijacked 错误，且不会产生任何其他副作用。
 	ErrHijacked = errors.New("http: connection has been hijacked")
 
-	// ErrContentLength is returned by ResponseWriter.Write calls
-	// when a Handler set a Content-Length response header with a
-	// declared size and then attempted to write more bytes than
-	// declared.
+	// ErrContentLength 错误会在以下情况返回：当 Handler 设置了带有声明大小的 Content-Length 响应头，
+	// 但随后尝试写入的字节数超过声明大小时，对 ResponseWriter.Write 的调用会返回此错误。
 	ErrContentLength = errors.New("http: wrote more than the declared Content-Length")
 
 	// Deprecated: ErrWriteAfterFlush is no longer returned by
@@ -61,249 +54,166 @@ var (
 	ErrWriteAfterFlush = errors.New("unused")
 )
 
-// A Handler responds to an HTTP request.
-//
-// [Handler.ServeHTTP] should write reply headers and data to the [ResponseWriter]
-// and then return. Returning signals that the request is finished; it
-// is not valid to use the [ResponseWriter] or read from the
-// [Request.Body] after or concurrently with the completion of the
-// ServeHTTP call.
-//
-// Depending on the HTTP client software, HTTP protocol version, and
-// any intermediaries between the client and the Go server, it may not
-// be possible to read from the [Request.Body] after writing to the
-// [ResponseWriter]. Cautious handlers should read the [Request.Body]
-// first, and then reply.
-//
-// Except for reading the body, handlers should not modify the
-// provided Request.
-//
-// If ServeHTTP panics, the server (the caller of ServeHTTP) assumes
-// that the effect of the panic was isolated to the active request.
-// It recovers the panic, logs a stack trace to the server error log,
-// and either closes the network connection or sends an HTTP/2
-// RST_STREAM, depending on the HTTP protocol. To abort a handler so
-// the client sees an interrupted response but the server doesn't log
-// an error, panic with the value [ErrAbortHandler].
+// Handler 用于处理 HTTP 请求。
+// [Handler.ServeHTTP] 方法应将回复的头部和数据写入 [ResponseWriter] 后返回。
+// 返回标志着该请求处理完成；在 ServeHTTP 调用完成后或并发地使用 [ResponseWriter] 或从 [Request.Body] 中读取数据是无效的。
+// 根据所使用的 HTTP 客户端软件、HTTP 协议版本以及客户端与 Go 服务器之间的中间代理，
+// 在写入 [ResponseWriter] 之后可能无法再从 [Request.Body] 中读取数据。
+// 为了确保可靠，处理器应首先读取 [Request.Body]，然后再进行回复。
+// 除了读取请求体之外，处理器不应修改所提供的 [Request] 对象。
+// 如果 ServeHTTP 发生 panic，服务器（ServeHTTP 的调用方）会假定 panic 的影响仅限于当前活动请求。
+// 服务器会恢复 panic，将堆栈跟踪记录到服务器错误日志中，并根据 HTTP 协议决定是关闭网络连接还是发送 HTTP/2 RST_STREAM 帧。
+// 如需中止处理器以便客户端看到被中断的响应，但服务器又不记录错误，可通过 panic 传递 [ErrAbortHandler] 值来实现。
 type Handler interface {
 	ServeHTTP(ResponseWriter, *Request)
 }
 
-// A ResponseWriter interface is used by an HTTP handler to
-// construct an HTTP response.
-//
-// A ResponseWriter may not be used after [Handler.ServeHTTP] has returned.
+// ResponseWriter 接口被 HTTP 处理器用于构造 HTTP 响应。
+// ResponseWriter 在 [Handler.ServeHTTP] 方法返回后不可再被使用。
 type ResponseWriter interface {
-	// Header returns the header map that will be sent by
-	// [ResponseWriter.WriteHeader]. The [Header] map also is the mechanism with which
-	// [Handler] implementations can set HTTP trailers.
+	// Header 方法返回一个头部映射（header map），该映射将通过 [ResponseWriter.WriteHeader] 方法发送。
+	// 这个 [Header] 映射也是 [Handler] 实现可以用来设置 HTTP 尾部（trailer）的机制。
 	//
-	// Changing the header map after a call to [ResponseWriter.WriteHeader] (or
-	// [ResponseWriter.Write]) has no effect unless the HTTP status code was of the
-	// 1xx class or the modified headers are trailers.
+	// 在调用 [ResponseWriter.WriteHeader]（或 [ResponseWriter.Write]）之后修改头部映射不会生效，除非：
+	// 1. HTTP 状态码属于 1xx 类（信息性状态码）；或
+	// 2. 所修改的头部是尾部（trailer）。
 	//
-	// There are two ways to set Trailers. The preferred way is to
-	// predeclare in the headers which trailers you will later
-	// send by setting the "Trailer" header to the names of the
-	// trailer keys which will come later. In this case, those
-	// keys of the Header map are treated as if they were
-	// trailers. See the example. The second way, for trailer
-	// keys not known to the [Handler] until after the first [ResponseWriter.Write],
-	// is to prefix the [Header] map keys with the [TrailerPrefix]
-	// constant value.
+	// 设置尾部有两种方式：
+	// 1. 首选方式是在头部中预先声明后续将要发送的尾部，具体做法是将 "Trailer" 头部设置为后续将出现的尾部键名。
+	//    在这种情况下，Header 映射中这些键对应的值将被视为尾部处理。请参阅示例。
+	// 2. 第二种方式适用于在第一次调用 [ResponseWriter.Write] 之后才知道尾部键的情况，
+	//    此时可以在 [Header] 映射的键名前加上 [TrailerPrefix] 常量值作为前缀。
 	//
-	// To suppress automatic response headers (such as "Date"), set
-	// their value to nil.
+	// 若要禁止自动生成某些响应头部（例如 "Date"），可将其对应的值设置为 nil。
 	Header() Header
 
-	// Write writes the data to the connection as part of an HTTP reply.
+	// Write 将数据作为 HTTP 响应的一部分写入连接。
 	//
-	// If [ResponseWriter.WriteHeader] has not yet been called, Write calls
-	// WriteHeader(http.StatusOK) before writing the data. If the Header
-	// does not contain a Content-Type line, Write adds a Content-Type set
-	// to the result of passing the initial 512 bytes of written data to
-	// [DetectContentType]. Additionally, if the total size of all written
-	// data is under a few KB and there are no Flush calls, the
-	// Content-Length header is added automatically.
-	//
-	// Depending on the HTTP protocol version and the client, calling
-	// Write or WriteHeader may prevent future reads on the
-	// Request.Body. For HTTP/1.x requests, handlers should read any
-	// needed request body data before writing the response. Once the
-	// headers have been flushed (due to either an explicit Flusher.Flush
-	// call or writing enough data to trigger a flush), the request body
-	// may be unavailable. For HTTP/2 requests, the Go HTTP server permits
-	// handlers to continue to read the request body while concurrently
-	// writing the response. However, such behavior may not be supported
-	// by all HTTP/2 clients. Handlers should read before writing if
-	// possible to maximize compatibility.
+	// 如果 [ResponseWriter.WriteHeader] 尚未被调用，Write 会在写入数据之前自动调用 WriteHeader(http.StatusOK)。
+	// 如果头部（Header）中未包含 Content-Type 行，Write 会添加一个 Content-Type 头部，
+	// 其值是通过将已写入数据的前 512 字节传递给 [DetectContentType] 函数检测得出的。
+	// 此外，如果所有已写入数据的总大小小于几 KB，且没有调用过 Flush 方法，则会自动添加 Content-Length 头部。
+	// 根据 HTTP 协议版本和客户端的不同，调用 Write 或 WriteHeader 可能会阻止后续对 Request.Body 的读取。
+	// 对于 HTTP/1.x 请求，处理器应在写入响应之前先读取所需的请求体数据。一旦头部被刷新（无论是由于显式调用了 Flusher.Flush，
+	// 还是因为写入了足够的数据触发了自动刷新），请求体可能就不可用了。对于 HTTP/2 请求，Go HTTP 服务器允许处理器
+	// 在并发写入响应的同时继续读取请求体。然而，并非所有 HTTP/2 客户端都支持此行为。为了最大程度地保证兼容性，
+	// 处理器应尽可能在写入响应之前完成对请求体的读取。
 	Write([]byte) (int, error)
 
-	// WriteHeader sends an HTTP response header with the provided
-	// status code.
+	// WriteHeader 用于发送包含指定状态码的 HTTP 响应头部。
 	//
-	// If WriteHeader is not called explicitly, the first call to Write
-	// will trigger an implicit WriteHeader(http.StatusOK).
-	// Thus explicit calls to WriteHeader are mainly used to
-	// send error codes or 1xx informational responses.
-	//
-	// The provided code must be a valid HTTP 1xx-5xx status code.
-	// Any number of 1xx headers may be written, followed by at most
-	// one 2xx-5xx header. 1xx headers are sent immediately, but 2xx-5xx
-	// headers may be buffered. Use the Flusher interface to send
-	// buffered data. The header map is cleared when 2xx-5xx headers are
-	// sent, but not with 1xx headers.
-	//
-	// The server will automatically send a 100 (Continue) header
-	// on the first read from the request body if the request has
-	// an "Expect: 100-continue" header.
+	// 如果没有显式调用 WriteHeader，则首次调用 Write 时将自动触发一个隐式的 WriteHeader(http.StatusOK)。
+	// 因此，显式调用 WriteHeader 主要用于发送错误状态码或 1xx 信息性响应。
+	// 所提供的状态码必须是有效的 HTTP 1xx-5xx 状态码。可以写入任意数量的 1xx 头部，
+	// 之后最多只能写入一个 2xx-5xx 头部。1xx 头部会立即发送，但 2xx-5xx 头部可能会被缓冲。
+	// 通过实现 Flusher 接口可以发送缓冲中的数据。当 2xx-5xx 头部被发送时，头部映射（header map）会被清空，
+	// 但 1xx 头部发送后不会清空。
+	// 如果请求中包含 "Expect: 100-continue" 头部，服务器在首次读取请求体时会自动发送 100 (Continue) 头部。
 	WriteHeader(statusCode int)
 }
 
-// The Flusher interface is implemented by ResponseWriters that allow
-// an HTTP handler to flush buffered data to the client.
-//
-// The default HTTP/1.x and HTTP/2 [ResponseWriter] implementations
-// support [Flusher], but ResponseWriter wrappers may not. Handlers
-// should always test for this ability at runtime.
-//
-// Note that even for ResponseWriters that support Flush,
-// if the client is connected through an HTTP proxy,
-// the buffered data may not reach the client until the response
-// completes.
+// Flusher 接口由那些允许 HTTP 处理器将缓冲数据刷新到客户端的 ResponseWriter 实现。
+// 默认的 HTTP/1.x 和 HTTP/2 [ResponseWriter] 实现支持 [Flusher] 接口，但 ResponseWriter 的包装器可能不支持。
+// 处理器应在运行时始终测试其是否具备此能力。
+// 需要注意的是，即使对于支持 Flush 的 ResponseWriter，
+// 如果客户端是通过 HTTP 代理连接的，缓冲的数据可能要在响应完成后才能到达客户端。
 type Flusher interface {
 	// Flush sends any buffered data to the client.
 	Flush()
 }
 
-// The Hijacker interface is implemented by ResponseWriters that allow
-// an HTTP handler to take over the connection.
-//
-// The default [ResponseWriter] for HTTP/1.x connections supports
-// Hijacker, but HTTP/2 connections intentionally do not.
-// ResponseWriter wrappers may also not support Hijacker. Handlers
-// should always test for this ability at runtime.
+// Hijacker 接口由那些允许 HTTP 处理器接管底层连接的 ResponseWriter 实现。
+// 对于 HTTP/1.x 连接，默认的 [ResponseWriter] 实现支持 Hijacker 接口，
+// 但 HTTP/2 连接有意不支持此接口。ResponseWriter 的包装器也可能不支持 Hijacker。
+// 处理器应在运行时始终测试其是否具备此能力。
 type Hijacker interface {
-	// Hijack lets the caller take over the connection.
-	// After a call to Hijack the HTTP server library
-	// will not do anything else with the connection.
+	// Hijack 方法允许调用方接管底层连接。
+	// 调用 Hijack 后，HTTP 服务器库将不再对该连接执行任何操作。
 	//
-	// It becomes the caller's responsibility to manage
-	// and close the connection.
-	//
-	// The returned net.Conn may have read or write deadlines
-	// already set, depending on the configuration of the
-	// Server. It is the caller's responsibility to set
-	// or clear those deadlines as needed.
-	//
-	// The returned bufio.Reader may contain unprocessed buffered
-	// data from the client.
-	//
-	// After a call to Hijack, the original Request.Body must not
-	// be used. The original Request's Context remains valid and
-	// is not canceled until the Request's ServeHTTP method
-	// returns.
+	// 连接的管理与关闭责任将转移给调用方。
+	// 返回的 net.Conn 可能已设置读取或写入超时（取决于 Server 的配置），
+	// 调用方有责任根据需求设置或清除这些超时。
+	// 返回的 bufio.Reader 可能包含来自客户端的未处理缓冲数据。
+	// 调用 Hijack 后，不得再使用原始的 Request.Body。
+	// 原始 Request 的 Context 保持有效，并且在 Request 的 ServeHTTP 方法返回前不会被取消。
 	Hijack() (net.Conn, *bufio.ReadWriter, error)
 }
 
-// The CloseNotifier interface is implemented by ResponseWriters which
-// allow detecting when the underlying connection has gone away.
-//
-// This mechanism can be used to cancel long operations on the server
-// if the client has disconnected before the response is ready.
+// CloseNotifier 接口由那些允许检测底层连接何时已断开的 ResponseWriters 实现。
+// 这个机制可用于在客户端在响应准备完成前断开连接时，取消服务器上的长耗时操作。
 //
 // Deprecated: the CloseNotifier interface predates Go's context package.
 // New code should use [Request.Context] instead.
 type CloseNotifier interface {
-	// CloseNotify returns a channel that receives at most a
-	// single value (true) when the client connection has gone
-	// away.
+	// CloseNotify 返回一个信道，该信道在客户端连接断开时，最多接收一次信号（其值为 true）。
 	//
-	// CloseNotify may wait to notify until Request.Body has been
-	// fully read.
+	// CloseNotify 可能会等待，直到 Request.Body 被完全读取后，才会发送通知。
 	//
-	// After the Handler has returned, there is no guarantee
-	// that the channel receives a value.
+	// 在 Handler 返回后，不保证信道一定能接收到信号。
 	//
-	// If the protocol is HTTP/1.1 and CloseNotify is called while
-	// processing an idempotent request (such as GET) while
-	// HTTP/1.1 pipelining is in use, the arrival of a subsequent
-	// pipelined request may cause a value to be sent on the
-	// returned channel. In practice HTTP/1.1 pipelining is not
-	// enabled in browsers and not seen often in the wild. If this
-	// is a problem, use HTTP/2 or only use CloseNotify on methods
-	// such as POST.
+	// 如果协议是 HTTP/1.1，并且在处理一个幂等请求（例如 GET）期间调用了 CloseNotify，
+	// 同时该连接正在使用 HTTP/1.1 流水线，则后续流水线请求的到达可能会在返回的信道上触发信号发送。
+	// 实际上，浏览器通常不启用 HTTP/1.1 流水线，且这种情况在实践中并不常见。
+	// 如果这是一个潜在问题，建议使用 HTTP/2 协议，或者仅在 POST 等非幂等方法上使用 CloseNotify。
 	CloseNotify() <-chan bool
 }
 
 var (
-	// ServerContextKey is a context key. It can be used in HTTP
-	// handlers with Context.Value to access the server that
-	// started the handler. The associated value will be of
-	// type *Server.
+	// ServerContextKey 是一个 context 键（context key）。
+	// 它可以在 HTTP 处理器中与 Context.Value 方法一起使用，以访问启动该处理器的服务器。与之关联的值将是 *Server 类型。
 	ServerContextKey = &contextKey{"http-server"}
 
-	// LocalAddrContextKey is a context key. It can be used in
-	// HTTP handlers with Context.Value to access the local
-	// address the connection arrived on.
-	// The associated value will be of type net.Addr.
+	// LocalAddrContextKey 是一个 context 键（context key）。它可以在 HTTP 处理器中与 Context.Value 方法一起使用，
+	//以访问连接到达时的本地地址。与之关联的值将是 net.Addr 类型。
 	LocalAddrContextKey = &contextKey{"local-addr"}
 )
 
-// A conn represents the server side of an HTTP connection.
+// conn 代表了 HTTP 连接的服务端。
 type conn struct {
-	// server is the server on which the connection arrived.
-	// Immutable; never nil.
+	// server 是接收到此连接的服务器。该属性不可变，且永远不会为 nil。
 	server *Server
 
-	// cancelCtx cancels the connection-level context.
+	// cancelCtx 用于取消连接级别的上下文（context）。
 	cancelCtx context.CancelFunc
 
-	// rwc is the underlying network connection.
-	// This is never wrapped by other types and is the value given out
-	// to [Hijacker] callers. It is usually of type *net.TCPConn or
-	// *tls.Conn.
+	// rwc 是底层网络连接。
+	// 它不会被其他类型包装，并且是传递给 [Hijacker] 调用方的原始连接值。其类型通常是 *net.TCPConn 或 *tls.Conn。
 	rwc net.Conn
 
-	// remoteAddr is rwc.RemoteAddr().String(). It is not populated synchronously
-	// inside the Listener's Accept goroutine, as some implementations block.
-	// It is populated immediately inside the (*conn).serve goroutine.
-	// This is the value of a Handler's (*Request).RemoteAddr.
+	// remoteAddr 存储了 rwc.RemoteAddr().String() 的值。它没有在 Listener 的 Accept goroutine 中同步填充，因为某些实现会阻塞。
+	// remoteAddr 是在 (*conn).serve goroutine 中立即填充的。
+	// 这个值就是处理器（Handler）中 (*Request).RemoteAddr 所使用的地址。
 	remoteAddr string
 
-	// tlsState is the TLS connection state when using TLS.
-	// nil means not TLS.
+	// tlsState 记录了当使用 TLS 时的 TLS 连接状态。如果为 nil，则表示该连接未使用 TLS。
 	tlsState *tls.ConnectionState
 
-	// werr is set to the first write error to rwc.
-	// It is set via checkConnErrorWriter{w}, where bufw writes.
+	// werr 用于记录向 rwc 写入时发生的第一个写入错误。
+	// 这个值是通过 checkConnErrorWriter{w} 设置的，其中 bufw 负责将数据写入 w。
 	werr error
 
-	// r is bufr's read source. It's a wrapper around rwc that provides
-	// io.LimitedReader-style limiting (while reading request headers)
-	// and functionality to support CloseNotifier. See *connReader docs.
+	// r 是 bufr 的读取源。它是对 rwc 的一个包装器，提供 io.LimitedReader 风格的读取限制（在读取请求头时使用），
+	// 并支持 CloseNotifier 功能。详见 *connReader 的文档说明。
 	r *connReader
 
-	// bufr reads from r.
+	// bufr 从 r 读取。
 	bufr *bufio.Reader
 
-	// bufw writes to checkConnErrorWriter{c}, which populates werr on error.
+	// bufw 将数据写入到 checkConnErrorWriter{c} 中，后者在发生错误时会将错误信息存入 werr。
 	bufw *bufio.Writer
 
-	// lastMethod is the method of the most recent request
-	// on this connection, if any.
+	// lastMethod 记录此连接上最近一次请求所使用的 HTTP 方法（如果存在的话）。
 	lastMethod string
 
 	curReq atomic.Pointer[response] // (which has a Request in it)
 
 	curState atomic.Uint64 // packed (unixtime<<8|uint8(ConnState))
 
-	// mu guards hijackedv
+	// mu 保护 hijackedv 字段。
 	mu sync.Mutex
 
-	// hijackedv is whether this connection has been hijacked
-	// by a Handler with the Hijacker interface.
-	// It is guarded by mu.
+	// hijackedv 表示此连接是否已被一个实现了 Hijacker 接口的 Handler 劫持。
+	// 它由 mu 进行保护。
 	hijackedv bool
 }
 
@@ -313,7 +223,7 @@ func (c *conn) hijacked() bool {
 	return c.hijackedv
 }
 
-// c.mu must be held.
+// 调用此函数时，必须已持有 c.mu 锁。
 func (c *conn) hijackLocked() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
 	if c.hijackedv {
 		return nil, nil, ErrHijacked
@@ -336,35 +246,26 @@ func (c *conn) hijackLocked() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
 	return
 }
 
-// This should be >= 512 bytes for DetectContentType,
-// but otherwise it's somewhat arbitrary.
+// 此值应当不小于 512 字节，以确保能够被 [DetectContentType] 准确检测，
+// 在其他情况下，其取值则较为灵活，无严格约束。
 const bufferBeforeChunkingSize = 2048
 
-// chunkWriter writes to a response's conn buffer, and is the writer
-// wrapped by the response.w buffered writer.
-//
-// chunkWriter also is responsible for finalizing the Header, including
-// conditionally setting the Content-Type and setting a Content-Length
-// in cases where the handler's final output is smaller than the buffer
-// size. It also conditionally adds chunk headers, when in chunking mode.
-//
-// See the comment above (*response).Write for the entire write flow.
+// chunkWriter 负责将数据写入响应的连接缓冲区（conn buffer），它同时也是被 response.w 这个缓冲写入器所包装的底层写入器。
+// chunkWriter 还负责最终确定响应头（Header）的生成，这包括在适当条件下设置 Content-Type 类型，
+// 以及当处理器的最终输出大小小于缓冲区容量时设置 Content-Length 头部。此外，在启用分块传输编码（chunking mode）时，它还会视情况添加分块头。
+// 关于完整的写入流程，可参见 (*response).Write 方法上方的注释说明。
 type chunkWriter struct {
 	res *response
 
-	// header is either nil or a deep clone of res.handlerHeader
-	// at the time of res.writeHeader, if res.writeHeader is
-	// called and extra buffering is being done to calculate
-	// Content-Type and/or Content-Length.
+	// header 要么为 nil，要么是在调用 res.writeHeader 时，
+	// res.handlerHeader 的深层克隆副本，这种情况发生在需要进行额外缓冲以计算 Content-Type 和/或 Content-Length 的情况下。
 	header Header
 
-	// wroteHeader tells whether the header's been written to "the
-	// wire" (or rather: w.conn.buf). this is unlike
-	// (*response).wroteHeader, which tells only whether it was
-	// logically written.
+	// wroteHeader 指示是否已将头部实际写入“线路上”（更准确地说：是写入 w.conn.buf 中）。
+	// 这与 (*response).wroteHeader 不同，后者仅指示头部是否已在逻辑上被写入。
 	wroteHeader bool
 
-	// set by the writeHeader method:
+	// 此变量由 writeHeader 方法进行设置：
 	chunking bool // using chunked transfer encoding for reply body
 }
 
@@ -422,7 +323,7 @@ func (cw *chunkWriter) close() {
 	}
 }
 
-// A response represents the server side of an HTTP response.
+// response 表示服务器端对一个 HTTP 请求的响应对象。
 type response struct {
 	conn             *conn
 	req              *Request // request for this response
@@ -432,23 +333,17 @@ type response struct {
 	wants10KeepAlive bool               // HTTP/1.0 w/ Connection "keep-alive"
 	wantsClose       bool               // HTTP request has Connection "close"
 
-	// canWriteContinue is an atomic boolean that says whether or
-	// not a 100 Continue header can be written to the
-	// connection.
-	// writeContinueMu must be held while writing the header.
-	// These two fields together synchronize the body reader (the
-	// expectContinueReader, which wants to write 100 Continue)
-	// against the main writer.
+	// canWriteContinue 是一个原子布尔值，用于指示是否可以向连接写入 100 Continue 头部。
+	// 在写入该头部时，必须持有 writeContinueMu 互斥锁。
+	// 这两个字段共同用于同步消息体读取器（期望发送 100 Continue 的 expectContinueReader）与主写入器之间的操作。
 	writeContinueMu  sync.Mutex
 	canWriteContinue atomic.Bool
 
 	w  *bufio.Writer // buffers output in chunks to chunkWriter
 	cw chunkWriter
 
-	// handlerHeader is the Header that Handlers get access to,
-	// which may be retained and mutated even after WriteHeader.
-	// handlerHeader is copied into cw.header at WriteHeader
-	// time, and privately mutated thereafter.
+	// handlerHeader 是处理器（Handler）可访问的 Header 对象，它可以在 WriteHeader 调用之后仍然被保留和修改。
+	// handlerHeader 会在调用 WriteHeader 时被复制到 cw.header 中，之后便会进行私有的内部修改。
 	handlerHeader Header
 	calledHeader  bool // handler accessed handlerHeader via Header
 
@@ -456,43 +351,34 @@ type response struct {
 	contentLength int64 // explicitly-declared Content-Length; or -1
 	status        int   // status code passed to WriteHeader
 
-	// close connection after this reply.  set on request and
-	// updated after response from handler if there's a
-	// "Connection: keep-alive" response header and a
-	// Content-Length.
+	// 在本次响应后关闭连接。此标志在请求时被设置，
+	//当处理器返回的响应中同时包含 "Connection: keep-alive" 头部和 Content-Length 头部时，会根据响应信息进行更新。
 	closeAfterReply bool
 
-	// When fullDuplex is false (the default), we consume any remaining
-	// request body before starting to write a response.
+	// 当 fullDuplex 为 false（默认值）时，系统会在开始写入响应之前，先消费（读取并丢弃）请求体中剩余的所有未读数据。
 	fullDuplex bool
 
-	// requestBodyLimitHit is set by requestTooLarge when
-	// maxBytesReader hits its max size. It is checked in
-	// WriteHeader, to make sure we don't consume the
-	// remaining request body to try to advance to the next HTTP
-	// request. Instead, when this is set, we stop reading
-	// subsequent requests on this connection and stop reading
-	// input from it.
+	// requestBodyLimitHit 是在 maxBytesReader 达到其最大限制时，由 requestTooLarge 函数设置的标志。
+	//它会在 WriteHeader 方法中被检查，以确保我们不会尝试继续读取请求体的剩余部分来推进到下一个 HTTP 请求。当此标志被设置时，
+	//我们将停止在此连接上读取后续请求，并停止从该连接读取输入。
 	requestBodyLimitHit bool
 
-	// trailers are the headers to be sent after the handler
-	// finishes writing the body. This field is initialized from
-	// the Trailer response header when the response header is
-	// written.
+	// trailers 是指在处理器（handler）完成响应体的写入后，将要发送的头部（headers）。
+	// 此字段是在响应头部（response header）写入时，根据响应中的 Trailer 头部进行初始化的。
 	trailers []string
 
 	handlerDone atomic.Bool // set true when the handler exits
 
-	// Buffers for Date, Content-Length, and status code
+	// 用于缓存 Date、Content-Length 和状态码的缓冲区
 	dateBuf   [len(TimeFormat)]byte
 	clenBuf   [10]byte
 	statusBuf [3]byte
 
-	// lazyCloseNotifyMu protects closeNotifyCh and closeNotifyTriggered.
+	// lazyCloseNotifyMu 用于保护 closeNotifyCh 和 closeNotifyTriggered 这两个字段。
 	lazyCloseNotifyMu sync.Mutex
-	// closeNotifyCh is the channel returned by CloseNotify.
+	// closeNotifyCh 是 CloseNotify 方法返回的通道。
 	closeNotifyCh chan bool
-	// closeNotifyTriggered tracks prior closeNotify calls.
+	// closeNotifyTriggered 用于记录先前对 closeNotify 的调用情况。
 	closeNotifyTriggered bool
 }
 
@@ -509,16 +395,13 @@ func (c *response) EnableFullDuplex() error {
 	return nil
 }
 
-// TrailerPrefix is a magic prefix for [ResponseWriter.Header] map keys
-// that, if present, signals that the map entry is actually for
-// the response trailers, and not the response headers. The prefix
-// is stripped after the ServeHTTP call finishes and the values are
-// sent in the trailers.
-//
-// This mechanism is intended only for trailers that are not known
-// prior to the headers being written. If the set of trailers is fixed
-// or known before the header is written, the normal Go trailers mechanism
-// is preferred:
+// TrailerPrefix 是 [ResponseWriter.Header] 映射键中的一个特殊前缀，
+// 如果该前缀存在，则表明该映射条目实际上用于响应尾部（trailers），
+// 而不是响应头部（headers）。在 ServeHTTP 调用结束后，此前缀会被移除，
+// 对应的值会作为尾部（trailers）发送。
+// 此机制仅适用于在写入头部之前尚不确定的尾部（trailers）。
+// 如果尾部的集合是固定的，或者在写入头部之前就已经确定，
+// 则推荐使用标准的 Go 尾部（trailers）机制。
 //
 //	https://pkg.go.dev/net/http#ResponseWriter
 //	https://pkg.go.dev/net/http#example-ResponseWriter-Trailers

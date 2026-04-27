@@ -225,59 +225,48 @@ type HTTP2Config struct {
 	// 此参数仅适用于传输层（Transports）。
 	StrictMaxConcurrentRequests bool
 
-	// MaxDecoderHeaderTableSize optionally specifies an upper limit for the
-	// size of the header compression table used for decoding headers sent
-	// by the peer.
-	// A valid value is less than 4MiB.
-	// If zero or invalid, a default value is used.
+	// MaxDecoderHeaderTableSize 可选项，用于指定对端发送的头部解码时，所使用的头部压缩表的大小上限。
+	// 有效值应小于 4 MiB。
+	// 如果值为零或无效，将使用默认值。
 	MaxDecoderHeaderTableSize int
 
-	// MaxEncoderHeaderTableSize optionally specifies an upper limit for the
-	// header compression table used for sending headers to the peer.
-	// A valid value is less than 4MiB.
-	// If zero or invalid, a default value is used.
+	// MaxEncoderHeaderTableSize 可选项，用于指定向对端发送头部时，所使用的头部压缩表的大小上限。
+	// 有效值应小于 4 MiB。
+	// 如果值为零或无效，将使用默认值。
 	MaxEncoderHeaderTableSize int
 
-	// MaxReadFrameSize optionally specifies the largest frame
-	// this endpoint is willing to read.
-	// A valid value is between 16KiB and 16MiB, inclusive.
-	// If zero or invalid, a default value is used.
+	// MaxReadFrameSize 可选参数，用于指定此端点愿意接收的最大帧大小。
+	// 有效值范围为 16KiB 到 16MiB（包含两端边界值）。
+	// 如果值为零或无效，将使用默认值。
 	MaxReadFrameSize int
 
-	// MaxReceiveBufferPerConnection is the maximum size of the
-	// flow control window for data received on a connection.
-	// A valid value is at least 64KiB and less than 4MiB.
-	// If invalid, a default value is used.
+	// MaxReceiveBufferPerConnection 是连接上接收数据的流控窗口的最大尺寸。
+	// 有效值应至少为 64 KiB 且小于 4 MiB。
+	// 如果该值无效，将使用默认值。
 	MaxReceiveBufferPerConnection int
 
-	// MaxReceiveBufferPerStream is the maximum size of
-	// the flow control window for data received on a stream (request).
-	// A valid value is less than 4MiB.
-	// If zero or invalid, a default value is used.
+	// MaxReceiveBufferPerStream 指定了在单个流（请求）上接收数据的流控制窗口的最大大小。
+	// 有效值应小于 4 MiB。
+	// 如果值为零或无效，将使用默认值。
 	MaxReceiveBufferPerStream int
 
-	// SendPingTimeout is the timeout after which a health check using a ping
-	// frame will be carried out if no frame is received on a connection.
-	// If zero, no health check is performed.
+	// SendPingTimeout 是一个超时设置，如果在指定时长内未在连接上收到任何帧，则会通过发送 ping 帧来执行健康检查。
+	// 如果设置为零，则不执行健康检查。
 	SendPingTimeout time.Duration
 
-	// PingTimeout is the timeout after which a connection will be closed
-	// if a response to a ping is not received.
-	// If zero, a default of 15 seconds is used.
+	// PingTimeout 指定了在发送 ping 后，如果在此超时时间内未收到 ping 响应，则会关闭连接。
+	// 如果设置为零，将使用默认值 15 秒。
 	PingTimeout time.Duration
 
-	// WriteByteTimeout is the timeout after which a connection will be
-	// closed if no data can be written to it. The timeout begins when data is
-	// available to write, and is extended whenever any bytes are written.
+	// WriteByteTimeout 指定了一个超时时间，如果在此期间无法向连接写入任何数据，连接将被关闭。
+	// 该超时从有数据可写入时开始计时，并在任何字节被写入时重置。
 	WriteByteTimeout time.Duration
 
-	// PermitProhibitedCipherSuites, if true, permits the use of
-	// cipher suites prohibited by the HTTP/2 spec.
+	// PermitProhibitedCipherSuites 如果为 true，将允许使用 HTTP/2 规范中禁止的密码套件。
 	PermitProhibitedCipherSuites bool
 
-	// CountError, if non-nil, is called on HTTP/2 errors.
-	// It is intended to increment a metric for monitoring.
-	// The errType contains only lowercase letters, digits, and underscores
-	// (a-z, 0-9, _).
+	// CountError 是一个可选的函数，在发生 HTTP/2 错误时会被调用。
+	// 其用途通常是递增监控指标，以便进行错误监控和告警。
+	// errType 参数仅包含小写字母、数字和下划线（a-z, 0-9, _）的组合，确保其格式符合指标命名的常规规范。
 	CountError func(errType string)
 }

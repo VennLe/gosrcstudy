@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"net/textproto"
 	"os"
+
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -53,15 +54,14 @@ var osDefaultInheritEnv = func() []string {
 	return nil
 }()
 
-// Handler runs an executable in a subprocess with a CGI environment.
+// Handler 在子进程中运行一个可执行文件，并为其提供 CGI 环境。
 type Handler struct {
 	Path string // path to the CGI executable
 	Root string // root URI prefix of handler or empty for "/"
 
-	// Dir specifies the CGI executable's working directory.
-	// If Dir is empty, the base directory of Path is used.
-	// If Path has no base directory, the current working
-	// directory is used.
+	// Dir 指定了 CGI 可执行文件的工作目录。
+	// 如果 Dir 为空，则使用 Path 的基础目录。
+	// 如果 Path 没有基础目录，则使用当前工作目录。
 	Dir string
 
 	Env        []string    // extra environment variables to set, if any, as "key=value"
@@ -70,14 +70,10 @@ type Handler struct {
 	Args       []string    // optional arguments to pass to child process
 	Stderr     io.Writer   // optional stderr for the child process; nil means os.Stderr
 
-	// PathLocationHandler specifies the root http Handler that
-	// should handle internal redirects when the CGI process
-	// returns a Location header value starting with a "/", as
-	// specified in RFC 3875 § 6.3.2. This will likely be
-	// http.DefaultServeMux.
-	//
-	// If nil, a CGI response with a local URI path is instead sent
-	// back to the client and not redirected internally.
+	// PathLocationHandler 指定了处理内部重定向的根 http Handler，
+	//当 CGI 进程返回的 Location 头部值以 "/" 开头时（符合 RFC 3875 § 6.3.2 的规定），
+	//将使用此 Handler。通常这会是 http.DefaultServeMux。
+	// 如果为 nil，CGI 响应中带有本地 URI 路径的 Location 头部将直接发回客户端，而不在服务器内部进行重定向。
 	PathLocationHandler http.Handler
 }
 
@@ -328,9 +324,8 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		statusCode = http.StatusOK
 	}
 
-	// Copy headers to rw's headers, after we've decided not to
-	// go into handleInternalRedirect, which won't want its rw
-	// headers to have been touched.
+	// 在确定不进入内部重定向流程后，将头部复制到 rw 的头部中，
+	// 这是因为如果进入内部重定向处理，我们不希望其 rw 的头部被修改。
 	for k, vv := range headers {
 		for _, v := range vv {
 			rw.Header().Add(k, v)
@@ -342,12 +337,9 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	_, err = io.Copy(rw, linebody)
 	if err != nil {
 		h.printf("cgi: copy error: %v", err)
-		// And kill the child CGI process so we don't hang on
-		// the deferred cmd.Wait above if the error was just
-		// the client (rw) going away. If it was a read error
-		// (because the child died itself), then the extra
-		// kill of an already-dead process is harmless (the PID
-		// won't be reused until the Wait above).
+		// 终止子 CGI 进程，以防止在客户端连接断开（即 rw 关闭）导致错误时，
+		// 前面的 defer cmd.Wait 会一直挂起等待。如果错误是由于读取问题（例如子进程已自行终止）导致的，
+		// 那么对一个已死亡的进程额外执行 kill 操作也是无害的（因为在上述 Wait 完成前，其 PID 不会被重用）。
 		cmd.Process.Kill()
 	}
 }
