@@ -19,7 +19,8 @@ import (
 	"mime"
 	"mime/multipart"
 	"net/http/httptrace"
-	"net/http/internal/ascii"
+	"std/net/http/internal/ascii"
+
 	"net/textproto"
 	"net/url"
 	urlpkg "net/url"
@@ -1306,24 +1307,13 @@ func parsePostForm(r *Request) (vs url.Values, err error) {
 	return
 }
 
-// ParseForm populates r.Form and r.PostForm.
-//
-// For all requests, ParseForm parses the raw query from the URL and updates
-// r.Form.
-//
-// For POST, PUT, and PATCH requests, it also reads the request body, parses it
-// as a form and puts the results into both r.PostForm and r.Form. Request body
-// parameters take precedence over URL query string values in r.Form.
-//
-// If the request Body's size has not already been limited by [MaxBytesReader],
-// the size is capped at 10MB.
-//
-// For other HTTP methods, or when the Content-Type is not
-// application/x-www-form-urlencoded, the request Body is not read, and
-// r.PostForm is initialized to a non-nil, empty value.
-//
-// [Request.ParseMultipartForm] calls ParseForm automatically.
-// ParseForm is idempotent.
+// ParseForm 用于填充 r.Form 和 r.PostForm。
+// 对于所有请求，ParseForm 都会解析 URL 中的原始查询参数，并更新 r.Form。
+// 对于 POST、PUT 和 PATCH 请求，它还会读取请求体，将其解析为表单，并将结果同时放入 r.PostForm 和 r.Form 中。在 r.Form 中，请求体参数的值会优先于 URL 查询字符串的值。
+// 如果请求 Body 的大小尚未被 [MaxBytesReader] 限制，其大小上限将被设置为 10MB。
+// 对于其他 HTTP 方法，或者当 Content-Type 不是 application/x-www-form-urlencoded 时，请求 Body 不会被读取，r.PostForm 会被初始化为一个非 nil 的空值。
+// [Request.ParseMultipartForm] 会自动调用 ParseForm。
+// ParseForm 是幂等的。
 func (r *Request) ParseForm() error {
 	var err error
 	if r.PostForm == nil {
@@ -1359,14 +1349,11 @@ func (r *Request) ParseForm() error {
 	return err
 }
 
-// ParseMultipartForm parses a request body as multipart/form-data.
-// The whole request body is parsed and up to a total of maxMemory bytes of
-// its file parts are stored in memory, with the remainder stored on
-// disk in temporary files.
-// ParseMultipartForm calls [Request.ParseForm] if necessary.
-// If ParseForm returns an error, ParseMultipartForm returns it but also
-// continues parsing the request body.
-// After one call to ParseMultipartForm, subsequent calls have no effect.
+// ParseMultipartForm 将请求体解析为 multipart/form-data 格式。
+// 整个请求体将被解析，其中文件部分的总大小最多达到 maxMemory 字节的内容会存储在内存中，超出部分将保存在磁盘的临时文件中。
+// 必要时，ParseMultipartForm 会调用 [Request.ParseForm]。
+// 如果 ParseForm 返回一个错误，ParseMultipartForm 也会返回该错误，但仍会继续解析请求体。
+// 在第一次调用 ParseMultipartForm 之后，后续的调用将不再产生任何效果。
 func (r *Request) ParseMultipartForm(maxMemory int64) error {
 	if r.MultipartForm == multipartByReader {
 		return errors.New("http: multipart handled by MultipartReader")

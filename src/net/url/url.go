@@ -872,10 +872,9 @@ func (u *URL) Redacted() string {
 	return ru.String()
 }
 
-// Values maps a string key to a list of values.
-// It is typically used for query parameters and form values.
-// Unlike in the http.Header map, the keys in a Values map
-// are case-sensitive.
+// Values 将字符串键映射到一个值列表。
+// 它通常用于查询参数和表单值。
+// 与 http.Header 映射不同，Values 映射中的键是区分大小写的。
 type Values map[string][]string
 
 // Get gets the first value associated with the given key.
