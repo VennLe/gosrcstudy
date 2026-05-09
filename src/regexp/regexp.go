@@ -2,65 +2,45 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package regexp implements regular expression search.
-//
-// The syntax of the regular expressions accepted is the same
-// general syntax used by Perl, Python, and other languages.
-// More precisely, it is the syntax accepted by RE2 and described at
-// https://golang.org/s/re2syntax, except for \C.
-// For an overview of the syntax, see the [regexp/syntax] package.
-//
-// The regexp implementation provided by this package is
-// guaranteed to run in time linear in the size of the input.
-// (This is a property not guaranteed by most open source
-// implementations of regular expressions.) For more information
-// about this property, see https://swtch.com/~rsc/regexp/regexp1.html
-// or any book about automata theory.
-//
-// All characters are UTF-8-encoded code points.
-// Following [utf8.DecodeRune], each byte of an invalid UTF-8 sequence
-// is treated as if it encoded utf8.RuneError (U+FFFD).
-//
-// There are 16 methods of [Regexp] that match a regular expression and identify
-// the matched text. Their names are matched by this regular expression:
+// Package regexp 实现了正则表达式搜索功能。
+// 所接受的正则表达式语法与 Perl、Python 及其他语言使用的通用语法相同。
+// 更准确地说，它遵循 RE2 接受的语法规范，详见 https://golang.org/s/re2syntax（但排除 \C）。
+// 关于该语法的概述，请参阅 [regexp/syntax] 包。
+// 本包提供的正则表达式实现保证在输入规模上具有线性时间复杂度。
+// （这是大多数开源正则表达式实现不保证的特性。）
+// 有关此特性的更多信息，请参阅 https://swtch.com/~rsc/regexp/regexp1.html
+// 或任何关于自动机理论的书籍。
+// 所有字符均为 UTF-8 编码的码点。
+// 依据 [utf8.DecodeRune] 的约定，每个无效 UTF-8 序列的字节
+// 都会被视作编码了 utf8.RuneError（U+FFFD）处理。
+// [Regexp] 类型有 16 个方法用于匹配正则表达式并识别匹配的文本。
+// 它们的命名符合以下正则表达式：
 //
 //	Find(All)?(String)?(Submatch)?(Index)?
 //
-// If 'All' is present, the routine matches successive non-overlapping
-// matches of the entire expression. Empty matches abutting a preceding
-// match are ignored. The return value is a slice containing the successive
-// return values of the corresponding non-'All' routine. These routines take
-// an extra integer argument, n. If n >= 0, the function returns at most n
-// matches/submatches; otherwise, it returns all of them.
-//
-// If 'String' is present, the argument is a string; otherwise it is a slice
-// of bytes; return values are adjusted as appropriate.
-//
-// If 'Submatch' is present, the return value is a slice identifying the
-// successive submatches of the expression. Submatches are matches of
-// parenthesized subexpressions (also known as capturing groups) within the
-// regular expression, numbered from left to right in order of opening
-// parenthesis. Submatch 0 is the match of the entire expression, submatch 1 is
-// the match of the first parenthesized subexpression, and so on.
-//
-// If 'Index' is present, matches and submatches are identified by byte index
-// pairs within the input string: result[2*n:2*n+2] identifies the indexes of
-// the nth submatch. The pair for n==0 identifies the match of the entire
-// expression. If 'Index' is not present, the match is identified by the text
-// of the match/submatch. If an index is negative or text is nil, it means that
-// subexpression did not match any string in the input. For 'String' versions
-// an empty string means either no match or an empty match.
-//
-// There is also a subset of the methods that can be applied to text read from
-// an [io.RuneReader]: [Regexp.MatchReader], [Regexp.FindReaderIndex],
+// 如果名称中包含 'All'，该例程会匹配整个表达式的连续非重叠匹配。
+// 与前一个匹配相邻的空匹配会被忽略。返回值是一个切片，包含对应
+// 非 'All' 例程的连续返回值。这些例程接受一个额外的整数参数 n。
+// 如果 n >= 0，函数最多返回 n 个匹配/子匹配；否则返回所有匹配。
+// 如果名称中包含 'String'，参数为字符串；否则为字节切片；
+// 返回值会相应调整。
+// 如果名称中包含 'Submatch'，返回值是一个切片，标识表达式的
+// 连续子匹配。子匹配是正则表达式中括号子表达式（也称为捕获组）的匹配，
+// 按左括号从左到右的顺序编号。子匹配 0 是整个表达式的匹配，
+// 子匹配 1 是第一个括号子表达式的匹配，依此类推。
+// 如果名称中包含 'Index'，匹配和子匹配通过输入字符串中的字节索引对标识：
+// result[2n:2n+2] 标识第 n 个子匹配的索引。n==0 的索引对标识
+// 整个表达式的匹配。如果名称中不包含 'Index'，则通过匹配/子匹配的
+// 文本内容标识匹配。如果索引为负或文本为 nil，表示该子表达式
+// 在输入中未匹配任何字符串。对于 'String' 版本，空字符串表示
+// 无匹配或空匹配。
+// 还有一组方法可应用于从 [io.RuneReader] 读取的文本：
+// [Regexp.MatchReader], [Regexp.FindReaderIndex],
 // [Regexp.FindReaderSubmatchIndex].
-//
-// This set may grow. Note that regular expression matches may need to
-// examine text beyond the text returned by a match, so the methods that
-// match text from an [io.RuneReader] may read arbitrarily far into the input
-// before returning.
-//
-// (There are a few other methods that do not match this pattern.)
+// 此集合可能会扩展。请注意，正则表达式匹配可能需要检查
+// 匹配返回文本之外的内容，因此从 [io.RuneReader] 匹配文本的方法
+// 可能在返回前读取输入的任意长度。
+// （还有其他一些方法不符合此模式。）
 package regexp
 
 import (
@@ -74,82 +54,61 @@ import (
 	"unicode/utf8"
 )
 
-// Regexp is the representation of a compiled regular expression.
-// A Regexp is safe for concurrent use by multiple goroutines,
-// except for configuration methods, such as [Regexp.Longest].
+// Regexp 是编译后的正则表达式的表示形式。
+// Regexp 可在多个 goroutine 之间安全并发使用，但配置方法（例如 [Regexp.Longest]）除外。
 type Regexp struct {
-	expr           string       // as passed to Compile
-	prog           *syntax.Prog // compiled program
-	onepass        *onePassProg // onepass program or nil
-	numSubexp      int
-	maxBitStateLen int
-	subexpNames    []string
-	prefix         string         // required prefix in unanchored matches
-	prefixBytes    []byte         // prefix, as a []byte
-	prefixRune     rune           // first rune in prefix
-	prefixEnd      uint32         // pc for last rune in prefix
-	mpool          int            // pool for machines
-	matchcap       int            // size of recorded match lengths
-	prefixComplete bool           // prefix is the entire regexp
-	cond           syntax.EmptyOp // empty-width conditions required at start of match
-	minInputLen    int            // minimum length of the input in bytes
+	expr           string         // 传递给 Compile 的原始表达式
+	prog           *syntax.Prog   // 编译后的程序
+	onepass        *onePassProg   // 单次扫描程序，或 nil
+	numSubexp      int            // 捕获组的数量
+	maxBitStateLen int            // 位状态搜索的最大长度限制
+	subexpNames    []string       // 捕获组名称
+	prefix         string         // 在非锚定匹配中必须匹配的前缀
+	prefixBytes    []byte         // 前缀的字节切片表示
+	prefixRune     rune           // 前缀的首个 rune
+	prefixEnd      uint32         // 前缀中最后一个 rune 的程序计数器位置
+	mpool          int            // 状态机对象池的索引
+	matchcap       int            // 已记录匹配的长度大小
+	prefixComplete bool           // 前缀是否就是整个正则表达式
+	cond           syntax.EmptyOp // 匹配起始处必须满足的零宽度条件
+	minInputLen    int            // 输入的最小字节长度
 
-	// This field can be modified by the Longest method,
-	// but it is otherwise read-only.
-	longest bool // whether regexp prefers leftmost-longest match
+	// 此字段可以通过 Longest 方法进行修改，除此之外是只读的。
+	longest bool // 标记正则表达式是否采用最左最长匹配模式
 }
 
-// String returns the source text used to compile the regular expression.
+// String 返回编译此正则表达式所用的原始文本。
 func (re *Regexp) String() string {
 	return re.expr
 }
 
-// Copy returns a new [Regexp] object copied from re.
-// Calling [Regexp.Longest] on one copy does not affect another.
-//
-// Deprecated: In earlier releases, when using a [Regexp] in multiple goroutines,
-// giving each goroutine its own copy helped to avoid lock contention.
-// As of Go 1.12, using Copy is no longer necessary to avoid lock contention.
-// Copy may still be appropriate if the reason for its use is to make
-// two copies with different [Regexp.Longest] settings.
+// Copy 返回一个从 re 复制而来的新 [Regexp] 对象。
+// 在某个副本上调用 [Regexp.Longest] 不会影响其他副本。
+// 已弃用：在早期版本中，当在多个 goroutine 中使用同一个 [Regexp] 时，
+// 为每个 goroutine 提供其自身的副本有助于避免锁竞争。
+// 自 Go 1.12 起，不再需要使用 Copy 来避免锁竞争。
+// 如果使用 Copy 的目的是为了创建具有不同 [Regexp.Longest] 设置的两个副本，它可能仍然适用。
 func (re *Regexp) Copy() *Regexp {
 	re2 := *re
 	return &re2
 }
 
-// Compile parses a regular expression and returns, if successful,
-// a [Regexp] object that can be used to match against text.
-//
-// When matching against text, the regexp returns a match that
-// begins as early as possible in the input (leftmost), and among those
-// it chooses the one that a backtracking search would have found first.
-// This so-called leftmost-first matching is the same semantics
-// that Perl, Python, and other implementations use, although this
-// package implements it without the expense of backtracking.
-// For POSIX leftmost-longest matching, see [CompilePOSIX].
+// Compile 解析一个正则表达式，并在成功时返回一个可用于匹配文本的 [Regexp] 对象。
+// 在与文本匹配时，正则表达式会返回输入中起始位置尽可能靠左（最左）的匹配，
+// 并在这些匹配中，选择一个回溯搜索会首先找到的匹配。
+// 这种所谓的“最左优先”匹配与 Perl、Python 及其他实现所使用的语义相同，
+// 尽管本包实现它时并未付出回溯搜索的开销。
+// 关于 POSIX 的最左最长匹配，请参阅 [CompilePOSIX]。
 func Compile(expr string) (*Regexp, error) {
 	return compile(expr, syntax.Perl, false)
 }
 
-// CompilePOSIX is like [Compile] but restricts the regular expression
-// to POSIX ERE (egrep) syntax and changes the match semantics to
-// leftmost-longest.
-//
-// That is, when matching against text, the regexp returns a match that
-// begins as early as possible in the input (leftmost), and among those
-// it chooses a match that is as long as possible.
-// This so-called leftmost-longest matching is the same semantics
-// that early regular expression implementations used and that POSIX
-// specifies.
-//
-// However, there can be multiple leftmost-longest matches, with different
-// submatch choices, and here this package diverges from POSIX.
-// Among the possible leftmost-longest matches, this package chooses
-// the one that a backtracking search would have found first, while POSIX
-// specifies that the match be chosen to maximize the length of the first
-// subexpression, then the second, and so on from left to right.
-// The POSIX rule is computationally prohibitive and not even well-defined.
-// See https://swtch.com/~rsc/regexp/regexp2.html#posix for details.
+// CompilePOSIX 类似于 [Compile]，但限制正则表达式必须符合 POSIX ERE（egrep）语法，并将匹配语义改为最左最长匹配。
+// 也就是说，在与文本匹配时，正则表达式会返回输入中起始位置尽可能靠左（最左）的匹配，并在这些匹配中，选择一个尽可能长的匹配。
+// 这种所谓的“最左最长”匹配与早期正则表达式实现所使用的语义以及 POSIX 标准规定的语义相同。
+// 然而，可能存在多个最左最长匹配，它们具有不同的子匹配选择，而本包在此处与 POSIX 标准产生了分歧。在可能的最左最长匹配中，
+// 本包会选择回溯搜索会首先找到的那个匹配，而 POSIX 标准则规定匹配的选择应使第一个子表达式的长度最大化，然后是第二个，
+// 以此类推从左到右进行。POSIX 规则在计算上是难以实现的，甚至没有明确定义。详见 https://swtch.com/~rsc/regexp/regexp2.html#posix。
 func CompilePOSIX(expr string) (*Regexp, error) {
 	return compile(expr, syntax.POSIX, true)
 }

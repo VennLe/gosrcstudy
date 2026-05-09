@@ -16,24 +16,22 @@ import (
 	"text/template/parse"
 )
 
-// Template is a specialized Template from "text/template" that produces a safe
-// HTML document fragment.
+// Template 是来自 "text/template" 的一个专用模板，用于生成安全的 HTML 文档片段。
 type Template struct {
-	// Sticky error if escaping fails, or escapeOK if succeeded.
+	// 如果转义失败，该错误会“粘附”（被保留）；如果成功，则 escapeOK 为 true。
 	escapeErr error
-	// We could embed the text/template field, but it's safer not to because
-	// we need to keep our version of the name space and the underlying
-	// template's in sync.
+	// 我们本可以直接嵌入 text/template 的字段，但为了安全起见没有这样做，
+	// 因为我们需要确保我们自己的命名空间和底层模板的命名空间保持同步。
 	text *template.Template
-	// The underlying template's parse tree, updated to be HTML-safe.
+	// 底层模板的解析树，已更新为 HTML 安全的版本。
 	Tree       *parse.Tree
-	*nameSpace // common to all associated templates
+	*nameSpace // 所有关联模板共有的部分
 }
 
-// escapeOK is a sentinel value used to indicate valid escaping.
+// escapeOK 是一个哨兵值，用于指示转义操作成功。
 var escapeOK = fmt.Errorf("template escaped correctly")
 
-// nameSpace is the data structure shared by all templates in an association.
+// nameSpace 是在一个关联组中所有模板共享的数据结构。
 type nameSpace struct {
 	mu      sync.Mutex
 	set     map[string]*Template
@@ -41,8 +39,7 @@ type nameSpace struct {
 	esc     escaper
 }
 
-// Templates returns a slice of the templates associated with t, including t
-// itself.
+// Templates 返回与模板 t 关联的所有模板（包括 t 本身）组成的切片。
 func (t *Template) Templates() []*Template {
 	ns := t.nameSpace
 	ns.mu.Lock()
@@ -55,35 +52,29 @@ func (t *Template) Templates() []*Template {
 	return m
 }
 
-// Option sets options for the template. Options are described by
-// strings, either a simple string or "key=value". There can be at
-// most one equals sign in an option string. If the option string
-// is unrecognized or otherwise invalid, Option panics.
+// Option 为模板设置选项。选项由字符串描述，可以是简单字符串或 "key=value" 形式。一个选项字符串中最多只能包含一个等号。如果选项字符串无法识别或无效，Option 方法会引发 panic。
+// 已知选项：
+// missingkey：控制在执行过程中，如果使用一个不存在于 map 中的键进行索引时的行为。
 //
-// Known options:
-//
-// missingkey: Control the behavior during execution if a map is
-// indexed with a key that is not present in the map.
-//
-//	"missingkey=default" or "missingkey=invalid"
-//		The default behavior: Do nothing and continue execution.
-//		If printed, the result of the index operation is the string
-//		"<no value>".
+//	"missingkey=default" 或 "missingkey=invalid"
+//		默认行为：不执行任何操作，继续执行。
+//		如果将其打印输出，索引操作的结果将是字符串 "<no value>"。
 //	"missingkey=zero"
-//		The operation returns the zero value for the map type's element.
-//	"missingkey=error"
-//		Execution stops immediately with an error.
+//		该操作会返回 map 元素类型的零值。
+//
+// "missingkey=error"
+//
+//	执行会立即停止，并返回一个错误。
 func (t *Template) Option(opt ...string) *Template {
 	t.text.Option(opt...)
 	return t
 }
 
-// checkCanParse checks whether it is OK to parse templates.
-// If not, it returns an error.
+// checkCanParse 检查当前是否可以解析模板。如果不可用，则返回一个错误。
 func (t *Template) checkCanParse() error {
 	if t == nil {
 		return nil
-	}
+	} // checkCanParse 检查当前是否可以解析模板。如果不可用，则返回一个错误。
 	t.nameSpace.mu.Lock()
 	defer t.nameSpace.mu.Unlock()
 	if t.nameSpace.escaped {
@@ -92,7 +83,7 @@ func (t *Template) checkCanParse() error {
 	return nil
 }
 
-// escape escapes all associated templates.
+// escape 对所有关联的模板进行转义处理。
 func (t *Template) escape() error {
 	t.nameSpace.mu.Lock()
 	defer t.nameSpace.mu.Unlock()
@@ -110,13 +101,9 @@ func (t *Template) escape() error {
 	return nil
 }
 
-// Execute applies a parsed template to the specified data object,
-// writing the output to wr.
-// If an error occurs executing the template or writing its output,
-// execution stops, but partial results may already have been written to
-// the output writer.
-// A template may be executed safely in parallel, although if parallel
-// executions share a Writer the output may be interleaved.
+// Execute 将已解析的模板应用于指定的数据对象，并将输出写入 wr。
+// 如果在执行模板或写入输出时发生错误，执行会停止，但可能已有部分结果被写入输出 writer。
+// 模板可以安全地并行执行，但如果并行执行共享同一个 Writer，输出可能会交错在一起。
 func (t *Template) Execute(wr io.Writer, data any) error {
 	if err := t.escape(); err != nil {
 		return err
@@ -124,13 +111,9 @@ func (t *Template) Execute(wr io.Writer, data any) error {
 	return t.text.Execute(wr, data)
 }
 
-// ExecuteTemplate applies the template associated with t that has the given
-// name to the specified data object and writes the output to wr.
-// If an error occurs executing the template or writing its output,
-// execution stops, but partial results may already have been written to
-// the output writer.
-// A template may be executed safely in parallel, although if parallel
-// executions share a Writer the output may be interleaved.
+// ExecuteTemplate 将关联到 t 且具有给定名称的模板应用于指定的数据对象，并将输出写入 wr。
+// 如果在执行模板或写入输出时发生错误，执行会停止，但可能已有部分结果被写入输出 writer。
+// 模板可以安全地并行执行，但如果并行执行共享同一个 Writer，输出可能会交错在一起。
 func (t *Template) ExecuteTemplate(wr io.Writer, name string, data any) error {
 	tmpl, err := t.lookupAndEscapeTemplate(name)
 	if err != nil {
@@ -139,9 +122,7 @@ func (t *Template) ExecuteTemplate(wr io.Writer, name string, data any) error {
 	return tmpl.text.Execute(wr, data)
 }
 
-// lookupAndEscapeTemplate guarantees that the template with the given name
-// is escaped, or returns an error if it cannot be. It returns the named
-// template.
+// lookupAndEscapeTemplate 确保具有给定名称的模板已被转义，如果无法完成则返回错误。它同时返回该命名模板。
 func (t *Template) lookupAndEscapeTemplate(name string) (tmpl *Template, err error) {
 	t.nameSpace.mu.Lock()
 	defer t.nameSpace.mu.Unlock()
@@ -165,24 +146,17 @@ func (t *Template) lookupAndEscapeTemplate(name string) (tmpl *Template, err err
 	return tmpl, err
 }
 
-// DefinedTemplates returns a string listing the defined templates,
-// prefixed by the string "; defined templates are: ". If there are none,
-// it returns the empty string. Used to generate an error message.
+// DefinedTemplates 返回一个列出所有已定义模板的字符串，前缀为“; defined templates are: ”。
+// 如果没有定义任何模板，则返回空字符串。此方法用于生成错误信息。
 func (t *Template) DefinedTemplates() string {
 	return t.text.DefinedTemplates()
 }
 
-// Parse parses text as a template body for t.
-// Named template definitions ({{define ...}} or {{block ...}} statements) in text
-// define additional templates associated with t and are removed from the
-// definition of t itself.
-//
-// Templates can be redefined in successive calls to Parse,
-// before the first use of [Template.Execute] on t or any associated template.
-// A template definition with a body containing only white space and comments
-// is considered empty and will not replace an existing template's body.
-// This allows using Parse to add new named template definitions without
-// overwriting the main template body.
+// Parse 将文本解析为模板 t 的主体。
+// 文本中定义的命名模板（如 {{define ...}} 或 {{block ...}} 语句）会作为与 t 关联的额外模板定义，并从 t 自身的定义中移除。
+// 在首次对 t 或任何关联模板使用 [Template.Execute] 之前，可以通过连续调用 Parse 来重新定义模板。
+// 如果模板定义的主体仅包含空白字符和注释，则被视为空定义，不会替换现有模板的主体。
+// 这允许通过 Parse 添加新的命名模板定义，而不会覆盖主模板的主体。
 func (t *Template) Parse(text string) (*Template, error) {
 	if err := t.checkCanParse(); err != nil {
 		return nil, err
@@ -193,9 +167,9 @@ func (t *Template) Parse(text string) (*Template, error) {
 		return nil, err
 	}
 
-	// In general, all the named templates might have changed underfoot.
-	// Regardless, some new ones may have been defined.
-	// The template.Template set has been updated; update ours.
+	// 通常，所有命名模板都可能已被修改。
+	// 此外，可能还定义了一些新的模板。
+	// 底层的 template.Template 集合已更新；我们需要同步更新自己的状态。
 	t.nameSpace.mu.Lock()
 	defer t.nameSpace.mu.Unlock()
 	for _, v := range ret.Templates() {
@@ -210,10 +184,8 @@ func (t *Template) Parse(text string) (*Template, error) {
 	return t, nil
 }
 
-// AddParseTree creates a new template with the name and parse tree
-// and associates it with t.
-//
-// It returns an error if t or any associated template has already been executed.
+// AddParseTree 使用给定的名称和解析树创建一个新模板，并将其与 t 关联。
+// 如果 t 或任何关联模板已被执行过，则返回错误。
 func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error) {
 	if err := t.checkCanParse(); err != nil {
 		return nil, err
@@ -235,14 +207,10 @@ func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error
 	return ret, nil
 }
 
-// Clone returns a duplicate of the template, including all associated
-// templates. The actual representation is not copied, but the name space of
-// associated templates is, so further calls to [Template.Parse] in the copy will add
-// templates to the copy but not to the original. [Template.Clone] can be used to prepare
-// common templates and use them with variant definitions for other templates
-// by adding the variants after the clone is made.
-//
-// It returns an error if t has already been executed.
+// Clone 返回模板的一个副本，包括所有关联的模板。实际的表示（如解析树）不会被复制，但关联模板的命名空间会被复制，
+// 因此后续在副本上调用 [Template.Parse] 添加的模板只会附加到副本，而不会影响原始模板。[Template.Clone] 可用于准备公共模板，
+// 并在克隆后添加变体定义，以将其用于其他模板的变体版本。
+// 如果模板 t 已被执行过，则返回错误。
 func (t *Template) Clone() (*Template, error) {
 	t.nameSpace.mu.Lock()
 	defer t.nameSpace.mu.Unlock()
@@ -276,11 +244,11 @@ func (t *Template) Clone() (*Template, error) {
 			ret.nameSpace,
 		}
 	}
-	// Return the template associated with the name of this template.
+	// 返回与此模板名称关联的模板对象。
 	return ret.set[ret.Name()], nil
 }
 
-// New allocates a new HTML template with the given name.
+// New 分配一个具有指定名称的新 HTML 模板。
 func New(name string) *Template {
 	ns := &nameSpace{set: make(map[string]*Template)}
 	ns.esc = makeEscaper(ns)
@@ -294,20 +262,16 @@ func New(name string) *Template {
 	return tmpl
 }
 
-// New allocates a new HTML template associated with the given one
-// and with the same delimiters. The association, which is transitive,
-// allows one template to invoke another with a {{template}} action.
-//
-// If a template with the given name already exists, the new HTML template
-// will replace it. The existing template will be reset and disassociated with
-// t.
+// New 分配一个与给定模板关联且具有相同分隔符的新 HTML 模板。这种关联是可传递的，
+// 允许一个模板通过 {{template}} 动作调用另一个模板。
+// 如果给定名称的模板已存在，新的 HTML 模板将替换它。已有的模板将被重置并与 t 解除关联。
 func (t *Template) New(name string) *Template {
 	t.nameSpace.mu.Lock()
 	defer t.nameSpace.mu.Unlock()
 	return t.new(name)
 }
 
-// new is the implementation of New, without the lock.
+// new 是 New 方法的内部实现，不包含锁保护。
 func (t *Template) new(name string) *Template {
 	tmpl := &Template{
 		nil,
@@ -323,46 +287,39 @@ func (t *Template) new(name string) *Template {
 	return tmpl
 }
 
-// Name returns the name of the template.
+// Name 返回模板的名称。
 func (t *Template) Name() string {
 	return t.text.Name()
 }
 
 type FuncMap = template.FuncMap
 
-// Funcs adds the elements of the argument map to the template's function map.
-// It must be called before the template is parsed.
-// It panics if a value in the map is not a function with appropriate return
-// type. However, it is legal to overwrite elements of the map. The return
-// value is the template, so calls can be chained.
+// Funcs 将参数映射中的元素添加到模板的函数映射中。
+// 此方法必须在解析模板之前调用。
+// 如果映射中的值不是具有适当返回类型的函数，将会引发 panic。
+// 不过，允许覆盖映射中的元素。返回值为模板本身，因此可以进行链式调用。
 func (t *Template) Funcs(funcMap FuncMap) *Template {
-	t.text.Funcs(template.FuncMap(funcMap))
+	t.text.Funcs(funcMap)
 	return t
 }
 
-// Delims sets the action delimiters to the specified strings, to be used in
-// subsequent calls to [Template.Parse], [ParseFiles], or [ParseGlob]. Nested template
-// definitions will inherit the settings. An empty delimiter stands for the
-// corresponding default: {{ or }}.
-// The return value is the template, so calls can be chained.
+// Delims 将动作分隔符设置为指定的字符串，用于后续调用 [Template.Parse]、[ParseFiles] 或 [ParseGlob] 时。
+// 嵌套的模板定义会继承此设置。空字符串表示对应的默认分隔符：{{ 或 }}。
+// 返回值为模板本身，因此可以进行链式调用。
 func (t *Template) Delims(left, right string) *Template {
 	t.text.Delims(left, right)
 	return t
 }
 
-// Lookup returns the template with the given name that is associated with t,
-// or nil if there is no such template.
+// Lookup 返回与 t 关联的、具有给定名称的模板，如果没有这样的模板则返回 nil。
 func (t *Template) Lookup(name string) *Template {
 	t.nameSpace.mu.Lock()
 	defer t.nameSpace.mu.Unlock()
 	return t.set[name]
 }
 
-// Must is a helper that wraps a call to a function returning ([*Template], error)
-// and panics if the error is non-nil. It is intended for use in variable initializations
-// such as
-//
-//	var t = template.Must(template.New("name").Parse("html"))
+// Must 是一个辅助函数，它包装了对返回 ([*Template], error) 的函数的调用，并在错误非 nil 时引发 panic。它主要用于变量初始化，例如：
+// var t = template.Must(template.New("name").Parse("html"))
 func Must(t *Template, err error) *Template {
 	if err != nil {
 		panic(err)
@@ -370,40 +327,29 @@ func Must(t *Template, err error) *Template {
 	return t
 }
 
-// ParseFiles creates a new [Template] and parses the template definitions from
-// the named files. The returned template's name will have the (base) name and
-// (parsed) contents of the first file. There must be at least one file.
-// If an error occurs, parsing stops and the returned [*Template] is nil.
-//
-// When parsing multiple files with the same name in different directories,
-// the last one mentioned will be the one that results.
-// For instance, ParseFiles("a/foo", "b/foo") stores "b/foo" as the template
-// named "foo", while "a/foo" is unavailable.
+// ParseFiles 创建一个新的 [Template]，并从指定的文件中解析模板定义。返回的模板名称将是第一个文件的（基本）名称，
+// 其内容是第一个文件解析后的内容。必须至少指定一个文件。如果发生错误，解析会停止，并返回 nil。
+// 当解析不同目录中同名文件时，最后一个被提及的文件将作为结果模板。例如，ParseFiles("a/foo", "b/foo")
+// 会将 "b/foo" 存储为名为 "foo" 的模板，而 "a/foo" 将不可用。
 func ParseFiles(filenames ...string) (*Template, error) {
 	return parseFiles(nil, readFileOS, filenames...)
 }
 
-// ParseFiles parses the named files and associates the resulting templates with
-// t. If an error occurs, parsing stops and the returned template is nil;
-// otherwise it is t. There must be at least one file.
-//
-// When parsing multiple files with the same name in different directories,
-// the last one mentioned will be the one that results.
-//
-// ParseFiles returns an error if t or any associated template has already been executed.
+// ParseFiles 解析指定的文件，并将生成的模板与 t 关联。如果发生错误，解析会停止，并返回 nil；否则返回 t。必须至少指定一个文件。
+// 当解析不同目录中同名文件时，最后一个被提及的文件将作为结果模板。
+// 如果 t 或任何关联模板已被执行过，ParseFiles 会返回一个错误。
 func (t *Template) ParseFiles(filenames ...string) (*Template, error) {
 	return parseFiles(t, readFileOS, filenames...)
 }
 
-// parseFiles is the helper for the method and function. If the argument
-// template is nil, it is created from the first file.
+// parseFiles 是方法和函数的辅助实现。如果传入的模板为 nil，则用第一个文件创建它。
 func parseFiles(t *Template, readFile func(string) (string, []byte, error), filenames ...string) (*Template, error) {
 	if err := t.checkCanParse(); err != nil {
 		return nil, err
 	}
 
 	if len(filenames) == 0 {
-		// Not really a problem, but be consistent.
+		// 这实际上不算问题，但为了保持一致性，仍需处理。
 		return nil, fmt.Errorf("html/template: no files named in call to ParseFiles")
 	}
 	for _, filename := range filenames {
@@ -412,12 +358,9 @@ func parseFiles(t *Template, readFile func(string) (string, []byte, error), file
 			return nil, err
 		}
 		s := string(b)
-		// First template becomes return value if not already defined,
-		// and we use that one for subsequent New calls to associate
-		// all the templates together. Also, if this file has the same name
-		// as t, this file becomes the contents of t, so
-		//  t, err := New(name).Funcs(xxx).ParseFiles(name)
-		// works. Otherwise we create a new template associated with t.
+		// 如果第一个模板尚未被定义，它将作为返回值，并且我们会在后续的 New 调用中使用它，以将所有模板关联在一起。
+		// 此外，如果此文件与 t 具有相同的名称，则该文件将成为 t 的内容，因此像 t, err := New(name).Funcs(xxx).ParseFiles(name)
+		// 这样的调用可以正常工作。否则，我们将创建一个与 t 关联的新模板。
 		var tmpl *Template
 		if t == nil {
 			t = New(name)
@@ -435,34 +378,23 @@ func parseFiles(t *Template, readFile func(string) (string, []byte, error), file
 	return t, nil
 }
 
-// ParseGlob creates a new [Template] and parses the template definitions from
-// the files identified by the pattern. The files are matched according to the
-// semantics of filepath.Match, and the pattern must match at least one file.
-// The returned template will have the (base) name and (parsed) contents of the
-// first file matched by the pattern. ParseGlob is equivalent to calling
-// [ParseFiles] with the list of files matched by the pattern.
-//
-// When parsing multiple files with the same name in different directories,
-// the last one mentioned will be the one that results.
+// ParseGlob 创建一个新的 [Template]，并从模式匹配的文件中解析模板定义。文件匹配遵循 filepath.Match 的语义，
+// 且模式必须至少匹配一个文件。返回的模板将具有模式匹配到的第一个文件的（基本）名称和（解析后的）内容。
+// ParseGlob 等效于使用模式匹配到的文件列表调用 [ParseFiles]。
+// 当解析不同目录中同名文件时，最后一个被提及的文件将作为结果模板。
 func ParseGlob(pattern string) (*Template, error) {
 	return parseGlob(nil, pattern)
 }
 
-// ParseGlob parses the template definitions in the files identified by the
-// pattern and associates the resulting templates with t. The files are matched
-// according to the semantics of filepath.Match, and the pattern must match at
-// least one file. ParseGlob is equivalent to calling t.ParseFiles with the
-// list of files matched by the pattern.
-//
-// When parsing multiple files with the same name in different directories,
-// the last one mentioned will be the one that results.
-//
-// ParseGlob returns an error if t or any associated template has already been executed.
+// ParseGlob 解析模式匹配的文件中的模板定义，并将生成的模板与 t 关联。文件匹配遵循 filepath.Match 的语义，
+// 且模式必须至少匹配一个文件。ParseGlob 等效于使用模式匹配到的文件列表调用 t.ParseFiles。
+// 当解析不同目录中同名文件时，最后一个被提及的文件将作为结果模板。
+// 如果 t 或任何关联模板已被执行过，ParseGlob 会返回一个错误。
 func (t *Template) ParseGlob(pattern string) (*Template, error) {
 	return parseGlob(t, pattern)
 }
 
-// parseGlob is the implementation of the function and method ParseGlob.
+// parseGlob 是函数和方法 ParseGlob 的内部实现。
 func parseGlob(t *Template, pattern string) (*Template, error) {
 	if err := t.checkCanParse(); err != nil {
 		return nil, err
@@ -477,25 +409,21 @@ func parseGlob(t *Template, pattern string) (*Template, error) {
 	return parseFiles(t, readFileOS, filenames...)
 }
 
-// IsTrue reports whether the value is 'true', in the sense of not the zero of its type,
-// and whether the value has a meaningful truth value. This is the definition of
-// truth used by if and other such actions.
+// IsTrue 判断一个值是否为“真”，即该值是否不为该类型的零值，以及该值是否具有有意义的真值定义。这是 if 等动作所使用的真值定义标准。
 func IsTrue(val any) (truth, ok bool) {
 	return template.IsTrue(val)
 }
 
-// ParseFS is like [ParseFiles] or [ParseGlob] but reads from the file system fs
-// instead of the host operating system's file system.
-// It accepts a list of glob patterns.
-// (Note that most file names serve as glob patterns matching only themselves.)
+// ParseFS 类似于 [ParseFiles] 或 [ParseGlob]，但它从文件系统 fs 中读取，而不是从宿主操作系统的文件系统中读取。
+// 它接受一组 glob 模式。
+// （请注意，大多数文件名本身就可作为仅匹配自身的 glob 模式。）
 func ParseFS(fs fs.FS, patterns ...string) (*Template, error) {
 	return parseFS(nil, fs, patterns)
 }
 
-// ParseFS is like [Template.ParseFiles] or [Template.ParseGlob] but reads from the file system fs
-// instead of the host operating system's file system.
-// It accepts a list of glob patterns.
-// (Note that most file names serve as glob patterns matching only themselves.)
+// ParseFS 类似于 [Template.ParseFiles] 或 [Template.ParseGlob]，但它从文件系统 fs 中读取，而不是从宿主操作系统的文件系统中读取。
+// 它接受一组 glob 模式。
+// （请注意，大多数文件名本身就可作为仅匹配自身的 glob 模式。）
 func (t *Template) ParseFS(fs fs.FS, patterns ...string) (*Template, error) {
 	return parseFS(t, fs, patterns)
 }
